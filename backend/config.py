@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # Colombia timezone
     timezone: str = "America/Bogota"
 
+    # Development mode
+    use_mock_ai: bool = False
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -226,6 +226,65 @@ async def _call_claude(
 
     raise ValueError("Claude did not return a tool_use block")
 
+def _get_mock_cards() -> list[Card]:
+    """Mock cards for development — replace with real AI when credits available."""
+    return [
+        Card(
+            front="I've been swamped lately",
+            back="He estado muy ocupado últimamente",
+            keyword="swamped",
+            grammar_note="Present perfect continuo — acción que empezó antes y sigue ahora",
+            context_note="Úsalo cuando estás muy ocupado con trabajo o responsabilidades",
+            colombian_note="Es como decir 'estoy hasta el cuello' o 'no doy abasto' — parce, llevo una semana encartado",
+            timestamp_start=17.5,
+            timestamp_end=21.5,
+            card_type="phrase",
+        ),
+        Card(
+            front="Let's touch base tomorrow",
+            back="Hablemos mañana / Nos coordinamos mañana",
+            keyword="touch base",
+            grammar_note="Imperativo con 'let's' — propuesta informal para hacer algo juntos",
+            context_note="Muy común en ambientes de trabajo para coordinar sin entrar en detalles",
+            colombian_note="Como decir 'cuadramos mañana' o 'nos pegamos mañana' — típico en reuniones de trabajo",
+            timestamp_start=44.2,
+            timestamp_end=48.0,
+            card_type="idiom",
+        ),
+        Card(
+            front="Can you bring me up to speed?",
+            back="¿Me puedes poner al día / actualizar?",
+            keyword="bring up to speed",
+            grammar_note="Modales con 'can' — petición educada. 'Up to speed' = al nivel actual",
+            context_note="Cuando llegas tarde a un proyecto o reunión y necesitas que te expliquen qué pasó",
+            colombian_note="Como decir '¿me cuentas qué ha pasado?' o '¿me pones en contexto?' — muy útil en call centers",
+            timestamp_start=51.5,
+            timestamp_end=55.2,
+            card_type="phrase",
+        ),
+        Card(
+            front="I've got it covered",
+            back="Yo me encargo / Lo tengo bajo control",
+            keyword="got it covered",
+            grammar_note="Present perfect informal — 'got' reemplaza 'have' en inglés coloquial",
+            context_note="Para decir que ya te responsabilizaste de algo sin que nadie más tenga que preocuparse",
+            colombian_note="Como decir 'yo me encargo de eso' o 'tranquilo que yo lo manejo' — muy usado en trabajo",
+            timestamp_start=62.5,
+            timestamp_end=65.8,
+            card_type="phrase",
+        ),
+        Card(
+            front="My bad",
+            back="Fue mi culpa / Me equivoqué",
+            keyword="my bad",
+            grammar_note="Expresión coloquial — equivalente informal de 'I'm sorry, it was my fault'",
+            context_note="Para disculparse de forma casual por un error pequeño entre conocidos o compañeros",
+            colombian_note="Como decir 'uy, fue mi culpa' o 'perdon, la embarré' — muy natural entre parceros",
+            timestamp_start=65.8,
+            timestamp_end=69.5,
+            card_type="vocabulary",
+        ),
+    ]
 
 async def generate_cards(
     transcript_text: str,
@@ -261,6 +320,10 @@ async def generate_cards(
     )
 
     # Determine provider order based on user tier + circuit breaker
+    # DEVELOPMENT MODE — remove when AI credits are available
+    if settings.use_mock_ai:
+        logger.info("Using mock AI cards (development mode)")
+        return _get_mock_cards(), "mock-development"        
     primary_provider = TIER_TO_PROVIDER.get(user_role, "flash")
     fallback_order = _get_fallback_order(primary_provider)
 
