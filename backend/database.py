@@ -1,10 +1,14 @@
+import pymongo
+import pymongo.server_api
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from config import get_settings
 
 settings = get_settings()
 
-client: AsyncIOMotorClient | None = None
-db: AsyncIOMotorDatabase | None = None
+client = AsyncIOMotorClient(
+    settings.mongodb_url,
+    server_api=pymongo.server_api.ServerApi('1'),
+)
 
 
 async def connect_db() -> None:
