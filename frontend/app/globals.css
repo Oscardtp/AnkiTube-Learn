@@ -1,39 +1,127 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #f7f9fb;
-  --foreground: #191c1e;
-}
-
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
   }
 
   body {
-    color: var(--foreground);
-    background: var(--background);
+    @apply bg-surface text-on-surface antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary-container text-white font-bold px-8 py-3 rounded-full transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 10px 25px -5px rgba(26, 86, 219, 0.3);
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+    box-shadow: 0 20px 35px -10px rgba(26, 86, 219, 0.35);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    @apply bg-surface-container-high text-on-surface font-semibold px-6 py-3 rounded-full transition-all duration-200 cursor-pointer;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-surface-variant;
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-ghost {
+    @apply text-on-surface-variant font-medium transition-colors cursor-pointer;
+  }
+
+  .btn-ghost:hover {
+    @apply text-primary;
+  }
+
+  .input-field {
+    @apply w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-on-surface placeholder:text-outline transition-all duration-200;
+  }
+
+  .input-field:focus {
+    @apply outline-none ring-2 ring-primary/30 border-primary;
+  }
+
+  .card {
+    @apply bg-surface-container-lowest rounded-2xl;
+    box-shadow: 0 4px 24px -4px rgba(25, 28, 30, 0.08);
+  }
+
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 8px 32px -8px rgba(25, 28, 30, 0.12);
+    transform: translateY(-4px);
+  }
+
+  .glass-panel {
+    @apply bg-white/20 backdrop-blur-xl border border-white/30;
+  }
+
+  .section-padding {
+    @apply py-24 px-6 md:px-12;
+  }
+
+  .container-limit {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary-container bg-clip-text text-transparent;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+  }
+
+  .material-symbols-filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .animate-in {
+    animation: fadeUp 0.5s ease-out forwards;
   }
 
-  /* Glass effect utility */
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  /* Gradient CTA */
-  .gradient-cta {
-    background: linear-gradient(135deg, #003fb1 0%, #1a56db 100%);
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

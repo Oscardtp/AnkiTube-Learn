@@ -1,0 +1,20 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A56DB"/>
+      <stop offset="100%" stop-color="#1648c2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App background -->
+  <rect width="32" height="32" rx="7" fill="#ffffff"/>
+
+  <!-- Card -->
+  <rect x="5" y="7" width="20" height="15" rx="3" fill="url(#favGrad)"/>
+
+  <!-- Play triangle -->
+  <polygon points="12,11 20,15 12,19" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Green dot -->
+  <circle cx="23" cy="9" r="4" fill="#10B981"/>
+</svg>

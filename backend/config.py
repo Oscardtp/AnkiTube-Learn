@@ -3,9 +3,15 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore"
+    }
+
     # App
     app_name: str = "AnkiTube Learn API"
-    debug: bool = False
+    app_debug: bool = False
     frontend_url: str = "http://localhost:3000"
 
     # MongoDB
@@ -53,10 +59,6 @@ class Settings(BaseSettings):
 
     # Development mode
     use_mock_ai: bool = False
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 @lru_cache()

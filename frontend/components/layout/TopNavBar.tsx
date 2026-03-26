@@ -1,6 +1,6 @@
 "use client";
 
-import { Notifications, HelpOutline, Search } from "@mui/icons-material";
+import { Bell, HelpCircle, Search } from "lucide-react";
 
 export function TopNavBar() {
   return (
@@ -26,11 +26,11 @@ export function TopNavBar() {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <button className="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-container-low">
-            <Notifications className="w-5 h-5" />
+          <button className="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-container-low" aria-label="Notifications">
+            <Bell className="w-5 h-5" />
           </button>
-          <button className="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-container-low">
-            <HelpOutline className="w-5 h-5" />
+          <button className="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-container-low" aria-label="Help">
+            <HelpCircle className="w-5 h-5" />
           </button>
 
           {/* Avatar */}
