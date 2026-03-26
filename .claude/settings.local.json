@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\Oscar\\\\OneDrive\\\\Documentos\\\\GitHub\\\\AnkiTube-Learn\\\\frontend\\\\public\\\\logo\")",
+      "Bash(cp \"C:\\\\Users\\\\Oscar\\\\OneDrive\\\\Documentos\\\\GitHub\\\\AnkiTube-Learn\\\\Workspace colaborativo\\\\logos\"/*.svg \"C:UsersOscarOneDriveDocumentosGitHubAnkiTube-Learnfrontendpubliclogo)"
+    ]
+  }
+}

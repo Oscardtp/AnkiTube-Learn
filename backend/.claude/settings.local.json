@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venvScriptsactivate)",
+      "Bash(pip install:*)",
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(python -m uvicorn main:app --reload)",
+      "Bash(npm run:*)",
+      "Bash(start:*)",
+      "Bash(git rm:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
