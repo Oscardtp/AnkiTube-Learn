@@ -1,0 +1,32 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cardGradTrans" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A56DB"/>
+      <stop offset="100%" stop-color="#1648c2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- NO background — transparent -->
+
+  <!-- Flashcard shadow / back card -->
+  <rect x="36" y="46" width="159" height="118" rx="18"
+    fill="rgba(26,86,219,0.12)"
+    stroke="rgba(26,86,219,0.3)" stroke-width="2"
+    transform="rotate(-6 128 128)"/>
+
+  <!-- Flashcard main -->
+  <rect x="46" y="56" width="164" height="118" rx="20" fill="url(#cardGradTrans)"/>
+
+  <!-- Play triangle -->
+  <polygon points="102,89 166,128 102,167" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Card text lines -->
+  <rect x="66" y="154" width="66" height="9" rx="5" fill="#ffffff" opacity="0.4"/>
+  <rect x="66" y="166" width="46" height="9" rx="5" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Green check badge -->
+  <circle cx="189" cy="67" r="23" fill="#10B981"/>
+  <polyline points="178,67 186,76 201,56"
+    stroke="#ffffff" stroke-width="6"
+    stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
