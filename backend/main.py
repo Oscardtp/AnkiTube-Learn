@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from config import get_settings
 from database import connect_db, disconnect_db
 from utils.rate_limit import limiter
-from routers import auth, decks, feedback, licenses, admin
+from routers import auth, decks, feedback, licenses, admin, callcenter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,6 +70,7 @@ app.include_router(decks.router)
 app.include_router(feedback.router)
 app.include_router(licenses.router)
 app.include_router(admin.router)
+app.include_router(callcenter.router)
 
 
 @app.get("/health")

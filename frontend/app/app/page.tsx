@@ -12,62 +12,76 @@ import {
   Zap,
   Phone,
   MessageSquare,
-  Star
+  Star,
+  Loader2
 } from "lucide-react"
 import { motion } from "framer-motion"
-
-// Mock data for dashboard
-const DAILY_PHRASES = [
-  {
-    id: 1,
-    english: "How may I assist you today?",
-    spanish: "Como puedo ayudarte hoy?",
-    context: "Saludo inicial",
-    difficulty: "easy"
-  },
-  {
-    id: 2,
-    english: "I understand your concern.",
-    spanish: "Entiendo tu preocupacion.",
-    context: "Empatia",
-    difficulty: "easy"
-  },
-  {
-    id: 3,
-    english: "Let me look into that for you.",
-    spanish: "Dejame revisar eso por ti.",
-    context: "Investigacion",
-    difficulty: "medium"
-  },
-]
-
-const RECENT_MODULES = [
-  {
-    id: 1,
-    title: "Saludos y bienvenida",
-    progress: 85,
-    totalPhrases: 12,
-    completedPhrases: 10,
-    icon: Phone,
-  },
-  {
-    id: 2,
-    title: "Manejo de quejas",
-    progress: 45,
-    totalPhrases: 15,
-    completedPhrases: 7,
-    icon: MessageSquare,
-  },
-]
-
-const QUICK_STATS = [
-  { label: "Frases aprendidas", value: "47", icon: BookOpen, color: "primary" },
-  { label: "Minutos de practica", value: "128", icon: Clock, color: "secondary" },
-  { label: "Precision promedio", value: "84%", icon: Target, color: "primary" },
-  { label: "Racha actual", value: "5 dias", icon: TrendingUp, color: "secondary" },
-]
+import { useAuth } from "@/context/AuthContext"
+import { useUserProgress, usePhrases } from "@/hooks/useCallCenter"
 
 export default function DashboardPage() {
+  const { user, isLoading: authLoading } = useAuth()
+  const { data: progressData, isLoading: progressLoading } = useUserProgress()
+  const { data: phrasesData, isLoading: phrasesLoading } = usePhrases({ limit: 3 })
+
+  const isLoading = authLoading || progressLoading || phrasesLoading
+
+  // Fallback data when not authenticated or loading
+  const progress = progressData || {
+    total_phrases_learned: 0,
+    total_practice_sessions: 0,
+    current_streak: 0,
+    total_points: 0,
+    level: 1,
+    skills: {
+      greetings: 0,
+      problem_solving: 0,
+      empathy: 0,
+      closing: 0,
+      pronunciation: 0
+    }
+  }
+
+  const phrases = phrasesData?.phrases || []
+  const userName = user?.email?.split("@")[0] || "Estudiante"
+
+  const QUICK_STATS = [
+    { label: "Frases aprendidas", value: progress.total_phrases_learned.toString(), icon: BookOpen, color: "primary" },
+    { label: "Sesiones completadas", value: progress.total_practice_sessions.toString(), icon: Clock, color: "secondary" },
+    { label: "Puntos totales", value: progress.total_points.toString(), icon: Target, color: "primary" },
+    { label: "Racha actual", value: `${progress.current_streak} dias`, icon: TrendingUp, color: "secondary" },
+  ]
+
+  const RECENT_MODULES = [
+    {
+      id: 1,
+      title: "Saludos y bienvenida",
+      progress: Math.min(progress.skills.greetings, 100),
+      totalPhrases: 12,
+      completedPhrases: Math.floor(progress.skills.greetings / 10),
+      icon: Phone,
+    },
+    {
+      id: 2,
+      title: "Manejo de quejas",
+      progress: Math.min(progress.skills.problem_solving, 100),
+      totalPhrases: 15,
+      completedPhrases: Math.floor(progress.skills.problem_solving / 10),
+      icon: MessageSquare,
+    },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-on-surface-variant">Cargando tu progreso...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Welcome Header */}
@@ -79,10 +93,10 @@ export default function DashboardPage() {
       >
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-on-surface">
-            Buen dia, <span className="text-gradient">Oscar</span>
+            Buen dia, <span className="text-gradient">{userName}</span>
           </h1>
           <p className="text-on-surface-variant mt-1">
-            Tienes <span className="font-semibold text-primary">3 frases</span> pendientes para hoy
+            Nivel <span className="font-semibold text-primary">{progress.level}</span> - {progress.total_points} puntos totales
           </p>
         </div>
 
@@ -155,15 +169,17 @@ export default function DashboardPage() {
             </p>
 
             {/* Preview Phrase */}
-            <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/20">
-              <p className="text-sm text-white/70 mb-1">Frase del dia:</p>
-              <p className="text-lg font-semibold">
-                &quot;{DAILY_PHRASES[0].english}&quot;
-              </p>
-              <p className="text-white/70 text-sm mt-1">
-                {DAILY_PHRASES[0].spanish}
-              </p>
-            </div>
+            {phrases.length > 0 && (
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/20">
+                <p className="text-sm text-white/70 mb-1">Frase del dia:</p>
+                <p className="text-lg font-semibold">
+                  &quot;{phrases[0].english}&quot;
+                </p>
+                <p className="text-white/70 text-sm mt-1">
+                  {phrases[0].spanish}
+                </p>
+              </div>
+            )}
 
             <Link
               href="/app/learn"
@@ -281,11 +297,11 @@ export default function DashboardPage() {
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-on-surface">Frases de hoy</h2>
-          <span className="text-sm text-on-surface-variant">3 pendientes</span>
+          <span className="text-sm text-on-surface-variant">{phrases.length} disponibles</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {DAILY_PHRASES.map((phrase, idx) => (
+          {phrases.map((phrase, idx) => (
             <div
               key={phrase.id}
               className={`bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-outline-variant/10 relative overflow-hidden ${
@@ -300,18 +316,18 @@ export default function DashboardPage() {
               
               <div className="mb-3">
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  phrase.difficulty === "easy" 
+                  phrase.difficulty === "beginner" 
                     ? "bg-secondary/10 text-secondary" 
                     : "bg-primary/10 text-primary"
                 }`}>
-                  {phrase.context}
+                  {phrase.category}
                 </span>
               </div>
 
-              <p className="font-semibold text-on-surface mb-2 leading-relaxed">
+              <p className="font-semibold text-on-surface mb-2 leading-relaxed line-clamp-2">
                 &quot;{phrase.english}&quot;
               </p>
-              <p className="text-sm text-on-surface-variant">
+              <p className="text-sm text-on-surface-variant line-clamp-2">
                 {phrase.spanish}
               </p>
             </div>

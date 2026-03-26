@@ -1,31 +1,27 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { 
   ArrowLeft,
-  Mic,
-  MicOff,
   Phone,
-  PhoneOff,
   Volume2,
-  VolumeX,
   MessageSquare,
   CheckCircle2,
   XCircle,
   Clock,
   Star,
   ChevronRight,
-  Play,
-  Pause,
   RotateCcw,
   Send,
   User,
   Headphones,
-  Sparkles,
-  Target
+  Target,
+  Loader2
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useScenarios, useStartPracticeSession, useSubmitResponse, useCompletePracticeSession } from "@/hooks/useCallCenter"
+import { mutate } from "swr"
 
 // Practice modes
 const PRACTICE_MODES = [
@@ -58,58 +54,7 @@ const PRACTICE_MODES = [
   },
 ]
 
-// Simulation scenarios
-const SIMULATION_SCENARIOS = [
-  {
-    id: 1,
-    title: "Cliente con problema de facturacion",
-    customerName: "Sarah Mitchell",
-    difficulty: "medium",
-    steps: [
-      {
-        customer: "Hi, I just received my bill and I think there's an error. I was charged $50 more than usual.",
-        expectedResponses: [
-          "I understand your concern. Let me look into that for you.",
-          "I apologize for any confusion. Can you tell me your account number?",
-          "Thank you for calling. I'll be happy to review your charges."
-        ],
-        correctIndex: 0,
-        feedback: {
-          correct: "Perfecto! Mostraste empatia y te ofreciste a ayudar.",
-          incorrect: "Intenta mostrar empatia primero antes de pedir informacion."
-        }
-      },
-      {
-        customer: "My account number is 45892. I've been a customer for 5 years and this has never happened before.",
-        expectedResponses: [
-          "I see your account. You're right, there's an additional charge for premium support.",
-          "Thank you for being a loyal customer. Let me check what happened with your account.",
-          "You should have read the terms and conditions more carefully."
-        ],
-        correctIndex: 1,
-        feedback: {
-          correct: "Excelente! Reconociste su lealtad como cliente.",
-          incorrect: "Recuerda valorar a los clientes de largo plazo."
-        }
-      },
-      {
-        customer: "Can you please remove this charge? I never signed up for premium support.",
-        expectedResponses: [
-          "I'll process a refund for you right away. Is there anything else I can help you with?",
-          "Unfortunately, we can't do refunds. It's company policy.",
-          "Let me transfer you to another department."
-        ],
-        correctIndex: 0,
-        feedback: {
-          correct: "Muy bien! Resolviste el problema y preguntaste si necesita mas ayuda.",
-          incorrect: "Siempre busca resolver el problema del cliente cuando sea posible."
-        }
-      }
-    ]
-  }
-]
-
-// Listening exercises
+// Listening exercises (static for now)
 const LISTENING_EXERCISES = [
   {
     id: 1,
@@ -146,7 +91,7 @@ const LISTENING_EXERCISES = [
   }
 ]
 
-// Typing exercises
+// Typing exercises (static for now)
 const TYPING_EXERCISES = [
   {
     id: 1,
@@ -177,8 +122,19 @@ export default function PracticePage() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [typedAnswer, setTypedAnswer] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(0)
   const [sessionComplete, setSessionComplete] = useState(false)
+  const [activeSession, setActiveSession] = useState<{ id: string; scenario_id: string } | null>(null)
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
+  const [feedbackMessage, setFeedbackMessage] = useState("")
+
+  // Backend hooks
+  const { data: scenariosData, isLoading: scenariosLoading } = useScenarios()
+  const { trigger: startSession, isMutating: isStarting } = useStartPracticeSession()
+  const { trigger: submitResponse, isMutating: isSubmitting } = useSubmitResponse()
+  const { trigger: completeSession, isMutating: isCompleting } = useCompletePracticeSession()
+
+  const scenarios = scenariosData?.scenarios || []
+  const currentScenario = scenarios.find(s => s.id === selectedScenarioId)
 
   // Reset state when changing modes
   const resetSession = () => {
@@ -189,6 +145,9 @@ export default function PracticePage() {
     setSelectedAnswer(null)
     setTypedAnswer("")
     setSessionComplete(false)
+    setActiveSession(null)
+    setSelectedScenarioId(null)
+    setFeedbackMessage("")
   }
 
   const playAudio = (text: string) => {
@@ -202,28 +161,81 @@ export default function PracticePage() {
     }
   }
 
-  const handleSimulationAnswer = (answerIndex: number) => {
+  const handleStartScenario = async (scenarioId: string) => {
+    try {
+      const session = await startSession(scenarioId)
+      setActiveSession({ id: session.id, scenario_id: scenarioId })
+      setSelectedScenarioId(scenarioId)
+    } catch (error) {
+      console.error("Error starting session:", error)
+    }
+  }
+
+  const handleSimulationAnswer = async (answerIndex: number) => {
+    if (!currentScenario || !activeSession) return
+    
     setSelectedAnswer(answerIndex)
-    const scenario = SIMULATION_SCENARIOS[0]
-    const step = scenario.steps[currentStep]
-    const correct = answerIndex === step.correctIndex
+    const expectedResponses = currentScenario.expected_responses
+    const userResponse = expectedResponses[answerIndex] || ""
+    const expectedResponse = expectedResponses[0] // First is typically the best answer
 
-    setIsCorrect(correct)
-    setShowFeedback(true)
+    try {
+      const result = await submitResponse({
+        session_id: activeSession.id,
+        scenario_id: activeSession.scenario_id,
+        user_response: userResponse,
+        expected_response: expectedResponse
+      })
 
-    if (correct) {
-      setScore(prev => prev + 10)
+      setIsCorrect(result.is_correct)
+      setScore(prev => prev + result.score)
+      setFeedbackMessage(result.feedback)
+      setShowFeedback(true)
+
+      setTimeout(() => {
+        setShowFeedback(false)
+        setSelectedAnswer(null)
+        setFeedbackMessage("")
+        
+        if (currentStep < expectedResponses.length - 1) {
+          setCurrentStep(prev => prev + 1)
+        } else {
+          handleCompleteSession()
+        }
+      }, 2500)
+    } catch (error) {
+      console.error("Error submitting response:", error)
+      // Fallback to local logic
+      const correct = answerIndex === 0 // First answer is usually correct
+      setIsCorrect(correct)
+      setShowFeedback(true)
+      if (correct) setScore(prev => prev + 10)
+      
+      setTimeout(() => {
+        setShowFeedback(false)
+        setSelectedAnswer(null)
+        if (currentStep < expectedResponses.length - 1) {
+          setCurrentStep(prev => prev + 1)
+        } else {
+          setSessionComplete(true)
+        }
+      }, 2500)
+    }
+  }
+
+  const handleCompleteSession = async () => {
+    if (!activeSession) {
+      setSessionComplete(true)
+      return
     }
 
-    setTimeout(() => {
-      setShowFeedback(false)
-      setSelectedAnswer(null)
-      if (currentStep < scenario.steps.length - 1) {
-        setCurrentStep(prev => prev + 1)
-      } else {
-        setSessionComplete(true)
-      }
-    }, 2500)
+    try {
+      await completeSession(activeSession.id)
+      mutate("userProgress")
+    } catch (error) {
+      console.error("Error completing session:", error)
+    }
+    setSessionComplete(true)
   }
 
   const handleListeningAnswer = (answerIndex: number) => {
@@ -251,7 +263,6 @@ export default function PracticePage() {
 
   const handleTypingSubmit = () => {
     const exercise = TYPING_EXERCISES[currentStep]
-    // Simple comparison - in production, use fuzzy matching
     const correct = typedAnswer.toLowerCase().trim() === exercise.expectedAnswer.toLowerCase().trim()
 
     setIsCorrect(correct)
@@ -411,7 +422,7 @@ export default function PracticePage() {
               <p className="text-sm text-on-surface-variant">Puntos ganados</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-secondary">{percentage}%</p>
+              <p className="text-3xl font-bold text-secondary">{Math.min(percentage, 100)}%</p>
               <p className="text-sm text-on-surface-variant">Precision</p>
             </div>
           </div>
@@ -440,18 +451,98 @@ export default function PracticePage() {
     )
   }
 
-  // Simulation Mode
-  if (selectedMode === "simulation") {
-    const scenario = SIMULATION_SCENARIOS[0]
-    const step = scenario.steps[currentStep]
-    const progress = ((currentStep + 1) / scenario.steps.length) * 100
+  // Simulation Mode - Scenario Selection
+  if (selectedMode === "simulation" && !selectedScenarioId) {
+    if (scenariosLoading) {
+      return (
+        <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-on-surface-variant">Cargando escenarios...</p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => setSelectedMode(null)}
+          className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-medium">Volver</span>
+        </button>
+
+        <h2 className="text-xl font-bold text-on-surface mb-2">Elige un escenario</h2>
+        <p className="text-on-surface-variant mb-6">Practica situaciones reales de call center</p>
+
+        <div className="space-y-4">
+          {scenarios.map((scenario, idx) => (
+            <motion.button
+              key={scenario.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              onClick={() => handleStartScenario(scenario.id)}
+              disabled={isStarting}
+              className="w-full text-left bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-outline-variant/10 hover:shadow-md hover:border-primary/20 transition-all group disabled:opacity-50"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  scenario.difficulty === "beginner" ? "bg-secondary/10" : 
+                  scenario.difficulty === "intermediate" ? "bg-primary/10" : "bg-error/10"
+                }`}>
+                  <Phone className={`w-6 h-6 ${
+                    scenario.difficulty === "beginner" ? "text-secondary" : 
+                    scenario.difficulty === "intermediate" ? "text-primary" : "text-error"
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-on-surface group-hover:text-primary transition-colors">
+                    {scenario.title}
+                  </h3>
+                  <p className="text-sm text-on-surface-variant mt-1">
+                    {scenario.description}
+                  </p>
+                  <div className="flex items-center gap-3 mt-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      scenario.difficulty === "beginner" ? "bg-secondary/10 text-secondary" : 
+                      scenario.difficulty === "intermediate" ? "bg-primary/10 text-primary" : 
+                      "bg-error/10 text-error"
+                    }`}>
+                      {scenario.difficulty === "beginner" ? "Basico" : 
+                       scenario.difficulty === "intermediate" ? "Intermedio" : "Avanzado"}
+                    </span>
+                    <span className="text-xs text-on-surface-variant">
+                      {scenario.category}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Simulation Mode - Active Practice
+  if (selectedMode === "simulation" && currentScenario) {
+    const expectedResponses = currentScenario.expected_responses
+    const progress = ((currentStep + 1) / expectedResponses.length) * 100
 
     return (
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={() => setSelectedMode(null)}
+            onClick={() => {
+              setSelectedScenarioId(null)
+              setActiveSession(null)
+              setCurrentStep(0)
+            }}
             className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -460,7 +551,7 @@ export default function PracticePage() {
 
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-on-surface-variant">
-              Paso {currentStep + 1} de {scenario.steps.length}
+              Paso {currentStep + 1} de {expectedResponses.length}
             </span>
             <span className="text-sm font-semibold text-primary">
               {score} puntos
@@ -482,12 +573,12 @@ export default function PracticePage() {
             <User className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-medium text-on-surface">{scenario.customerName}</p>
-            <p className="text-xs text-on-surface-variant">{scenario.title}</p>
+            <p className="font-medium text-on-surface">{currentScenario.customer_persona}</p>
+            <p className="text-xs text-on-surface-variant">{currentScenario.title}</p>
           </div>
         </div>
 
-        {/* Customer Message */}
+        {/* Customer Situation */}
         <motion.div
           key={currentStep}
           initial={{ opacity: 0, y: 20 }}
@@ -499,12 +590,12 @@ export default function PracticePage() {
               <User className="w-4 h-4 text-on-surface-variant" />
             </div>
             <div>
-              <p className="text-sm font-medium text-on-surface-variant mb-1">Cliente:</p>
-              <p className="text-on-surface leading-relaxed">&quot;{step.customer}&quot;</p>
+              <p className="text-sm font-medium text-on-surface-variant mb-1">Situacion:</p>
+              <p className="text-on-surface leading-relaxed">&quot;{currentScenario.situation}&quot;</p>
             </div>
           </div>
           <button
-            onClick={() => playAudio(step.customer)}
+            onClick={() => playAudio(currentScenario.situation)}
             className="mt-3 flex items-center gap-2 text-sm text-primary font-medium hover:underline"
           >
             <Volume2 className={`w-4 h-4 ${isPlaying ? "animate-pulse" : ""}`} />
@@ -515,10 +606,10 @@ export default function PracticePage() {
         {/* Response Options */}
         <div className="space-y-3">
           <p className="text-sm font-medium text-on-surface mb-3">Elige tu respuesta:</p>
-          {step.expectedResponses.map((response, idx) => {
+          {expectedResponses.slice(0, 3).map((response, idx) => {
             const isSelected = selectedAnswer === idx
             const showResult = showFeedback && isSelected
-            const isCorrectAnswer = idx === step.correctIndex
+            const isCorrectAnswer = idx === 0 // First response is typically the best
 
             return (
               <motion.button
@@ -526,8 +617,8 @@ export default function PracticePage() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                onClick={() => !showFeedback && handleSimulationAnswer(idx)}
-                disabled={showFeedback}
+                onClick={() => !showFeedback && !isSubmitting && handleSimulationAnswer(idx)}
+                disabled={showFeedback || isSubmitting}
                 className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                   showResult
                     ? isCorrect
@@ -569,11 +660,13 @@ export default function PracticePage() {
         <AnimatePresence>
           {showFeedback && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className={`mt-6 p-4 rounded-xl ${
-                isCorrect ? "bg-secondary/10 border border-secondary/20" : "bg-error/10 border border-error/20"
+              exit={{ opacity: 0, y: -20 }}
+              className={`mt-6 p-4 rounded-xl border ${
+                isCorrect 
+                  ? "bg-secondary/10 border-secondary/20" 
+                  : "bg-error/10 border-error/20"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -583,12 +676,27 @@ export default function PracticePage() {
                   <XCircle className="w-5 h-5 text-error flex-shrink-0" />
                 )}
                 <p className={`text-sm ${isCorrect ? "text-secondary" : "text-error"}`}>
-                  {isCorrect ? step.feedback.correct : step.feedback.incorrect}
+                  {feedbackMessage || (isCorrect ? "Excelente respuesta!" : "Intenta de nuevo con una respuesta mas empatica.")}
                 </p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Hints */}
+        {currentScenario.hints.length > 0 && !showFeedback && (
+          <div className="mt-6 p-4 bg-primary/5 rounded-xl border border-primary/10">
+            <p className="text-sm font-medium text-primary mb-2">Tips:</p>
+            <ul className="space-y-1">
+              {currentScenario.hints.map((hint, idx) => (
+                <li key={idx} className="text-sm text-on-surface-variant flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  {hint}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     )
   }
@@ -631,34 +739,31 @@ export default function PracticePage() {
         {/* Audio Player */}
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-br from-primary to-primary-container rounded-2xl p-8 text-white text-center mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-surface-container-lowest rounded-2xl p-6 mb-6 text-center border border-outline-variant/10"
         >
-          <Headphones className="w-12 h-12 mx-auto mb-4 opacity-80" />
-          <p className="text-lg font-medium mb-6">Escucha la frase en ingles</p>
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Headphones className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-on-surface-variant mb-4">Escucha la frase y selecciona su significado</p>
           <button
             onClick={() => playAudio(exercise.audio)}
-            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto transition-all ${
+            className={`px-6 py-3 rounded-xl font-medium transition-colors ${
               isPlaying 
-                ? "bg-white/30 scale-110" 
-                : "bg-white/20 hover:bg-white/30 hover:scale-105"
+                ? "bg-primary/20 text-primary" 
+                : "bg-primary text-white hover:bg-primary/90"
             }`}
           >
-            {isPlaying ? (
-              <Volume2 className="w-8 h-8 animate-pulse" />
-            ) : (
-              <Play className="w-8 h-8 ml-1" />
-            )}
+            <span className="flex items-center gap-2">
+              <Volume2 className={`w-5 h-5 ${isPlaying ? "animate-pulse" : ""}`} />
+              {isPlaying ? "Reproduciendo..." : "Escuchar frase"}
+            </span>
           </button>
-          <p className="text-sm text-white/70 mt-4">
-            {isPlaying ? "Reproduciendo..." : "Toca para escuchar"}
-          </p>
         </motion.div>
 
         {/* Options */}
         <div className="space-y-3">
-          <p className="text-sm font-medium text-on-surface mb-3">Que significa esta frase?</p>
           {exercise.options.map((option, idx) => {
             const isSelected = selectedAnswer === idx
             const showResult = showFeedback && isSelected
@@ -683,7 +788,7 @@ export default function PracticePage() {
                 } disabled:cursor-not-allowed`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                     showResult
                       ? isCorrect
                         ? "bg-secondary text-white"
@@ -697,7 +802,7 @@ export default function PracticePage() {
                     ) : showFeedback && isCorrectAnswer ? (
                       <CheckCircle2 className="w-4 h-4" />
                     ) : (
-                      <span className="text-sm font-medium">{String.fromCharCode(65 + idx)}</span>
+                      <span className="text-xs font-medium">{String.fromCharCode(65 + idx)}</span>
                     )}
                   </div>
                   <p className="text-on-surface">{option}</p>
@@ -750,55 +855,59 @@ export default function PracticePage() {
           key={currentStep}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-surface-container-lowest rounded-2xl p-6 mb-6 shadow-sm border border-outline-variant/10"
+          className="bg-surface-container-lowest rounded-2xl p-6 mb-6 border border-outline-variant/10"
         >
-          <MessageSquare className="w-8 h-8 text-primary mb-4" />
-          <p className="text-lg text-on-surface leading-relaxed">
-            {exercise.prompt}
-          </p>
-          
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-on-surface">{exercise.prompt}</p>
+            </div>
+          </div>
+
           {/* Hints */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-4">
             <span className="text-xs text-on-surface-variant">Pistas:</span>
             {exercise.hints.map((hint, idx) => (
-              <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
+              <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                 {hint}
               </span>
             ))}
           </div>
-        </motion.div>
 
-        {/* Input */}
-        <div className="space-y-4">
+          {/* Input */}
           <div className="relative">
-            <textarea
+            <input
+              type="text"
               value={typedAnswer}
               onChange={(e) => setTypedAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && typedAnswer.trim() && handleTypingSubmit()}
               placeholder="Escribe tu respuesta en ingles..."
               disabled={showFeedback}
-              className="w-full bg-surface-container-lowest border-2 border-outline-variant/30 rounded-xl px-4 py-4 text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors resize-none h-32 disabled:opacity-50"
+              className="w-full p-4 pr-12 bg-surface-container rounded-xl border border-outline-variant/30 focus:border-primary focus:outline-none text-on-surface placeholder:text-on-surface-variant disabled:opacity-50"
             />
+            <button
+              onClick={handleTypingSubmit}
+              disabled={!typedAnswer.trim() || showFeedback}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Send className="w-5 h-5" />
+            </button>
           </div>
-
-          <button
-            onClick={handleTypingSubmit}
-            disabled={!typedAnswer.trim() || showFeedback}
-            className="w-full py-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-          >
-            <Send className="w-5 h-5" />
-            Verificar respuesta
-          </button>
-        </div>
+        </motion.div>
 
         {/* Feedback */}
         <AnimatePresence>
           {showFeedback && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className={`mt-6 p-4 rounded-xl ${
-                isCorrect ? "bg-secondary/10 border border-secondary/20" : "bg-error/10 border border-error/20"
+              exit={{ opacity: 0, y: -20 }}
+              className={`p-4 rounded-xl border ${
+                isCorrect 
+                  ? "bg-secondary/10 border-secondary/20" 
+                  : "bg-error/10 border-error/20"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -809,12 +918,10 @@ export default function PracticePage() {
                 )}
                 <div>
                   <p className={`text-sm font-medium ${isCorrect ? "text-secondary" : "text-error"}`}>
-                    {isCorrect ? "Correcto!" : "Casi! La respuesta correcta es:"}
+                    {isCorrect ? "Correcto!" : "Respuesta correcta:"}
                   </p>
                   {!isCorrect && (
-                    <p className="text-sm text-on-surface mt-1 font-medium">
-                      &quot;{exercise.expectedAnswer}&quot;
-                    </p>
+                    <p className="text-sm text-on-surface mt-1">{exercise.expectedAnswer}</p>
                   )}
                 </div>
               </div>
