@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LibraryBooks, AutoAwesome, Settings } from "@mui/icons-material";
+import { Home, BookOpen, Sparkles, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/my-flashcards", label: "My Flashcards", icon: LibraryBooks },
-  { href: "/generate", label: "Generate", icon: AutoAwesome },
+  { href: "/my-flashcards", label: "My Flashcards", icon: BookOpen },
+  { href: "/generate", label: "Generate", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -56,12 +56,7 @@ export function SideNavBar() {
                   : "text-on-surface-variant hover:bg-surface-variant"
               }`}
             >
-              <Icon
-                className="w-5 h-5"
-                sx={{
-                  fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                }}
-              />
+              <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
             </Link>
           );

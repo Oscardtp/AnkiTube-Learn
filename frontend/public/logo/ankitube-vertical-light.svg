@@ -1,0 +1,47 @@
+<svg width="220" height="200" viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="vIconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A56DB"/>
+      <stop offset="100%" stop-color="#1648c2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="220" height="200" rx="14" fill="#ffffff"/>
+
+  <!-- Icon centered: back card -->
+  <rect x="55" y="13" width="84" height="62" rx="11"
+    fill="rgba(26,86,219,0.08)"
+    stroke="rgba(26,86,219,0.25)" stroke-width="1.5"
+    transform="rotate(-6 97 46)"/>
+
+  <!-- Icon: main card -->
+  <rect x="59" y="16" width="87" height="62" rx="12" fill="url(#vIconGrad)"/>
+
+  <!-- Icon: play triangle -->
+  <polygon points="88,36 121,49 88,62" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Icon: text lines -->
+  <rect x="72" y="69" width="36" height="5" rx="3" fill="#ffffff" opacity="0.4"/>
+  <rect x="72" y="77" width="24" height="5" rx="3" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Icon: green badge -->
+  <circle cx="134" cy="24" r="14" fill="#10B981"/>
+  <polyline points="126,24 132,31 143,16"
+    stroke="#ffffff" stroke-width="3.5"
+    stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Wordmark: AnkiTube -->
+  <text x="110" y="127"
+    font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-size="28" font-weight="700"
+    text-anchor="middle"
+    fill="#1A56DB">AnkiTube</text>
+
+  <!-- Wordmark: LEARN -->
+  <text x="110" y="158"
+    font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-size="19" font-weight="300"
+    text-anchor="middle"
+    fill="#10B981" letter-spacing="5">LEARN</text>
+</svg>

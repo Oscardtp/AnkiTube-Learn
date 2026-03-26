@@ -36,8 +36,8 @@ app = FastAPI(
     description="Convierte cualquier video de YouTube en tu clase de inglés personalizada.",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs" if settings.app_debug else None,
+    redoc_url="/redoc" if settings.app_debug else None,
 )
 
 # Rate limiter
@@ -47,7 +47,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
