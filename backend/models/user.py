@@ -31,7 +31,10 @@ class UserInDB(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(
+        min_length=8,
+        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+    )
 
 
 class UserLogin(BaseModel):

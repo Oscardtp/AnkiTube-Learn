@@ -10,6 +10,7 @@ from bson import ObjectId
 
 from database import get_db
 from utils.auth import require_superadmin
+from utils.rate_limit import limiter
 from config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ settings = get_settings()
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+@limiter.limit("5/minute")
 def verify_2fa(x_2fa_code: Optional[str] = Header(None, alias="X-2FA-Code")) -> None:
     """
     Verify 2FA code on every superadmin request.

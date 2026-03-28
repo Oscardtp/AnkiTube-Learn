@@ -5,6 +5,9 @@ from config import get_settings
 
 settings = get_settings()
 
+client: AsyncIOMotorClient = None
+db: AsyncIOMotorDatabase = None
+
 client = AsyncIOMotorClient(
     settings.mongodb_url,
     server_api=pymongo.server_api.ServerApi('1'),

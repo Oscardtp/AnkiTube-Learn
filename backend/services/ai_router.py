@@ -378,5 +378,9 @@ async def generate_cards(
 def _get_fallback_order(primary: str) -> list[str]:
     """Build fallback chain starting from primary provider."""
     all_providers = ["flash", "pro", "claude"]
-    idx = all_providers.index(primary)
-    return all_providers[idx:] + all_providers[:idx]
+    try:
+        idx = all_providers.index(primary)
+        return all_providers[idx:] + all_providers[:idx]
+    except ValueError:
+        logger.warning(f"Unknown provider '{primary}', using default fallback order")
+        return all_providers

@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Optional
+import pytz
 
 from fastapi import APIRouter, HTTPException, status, Depends, Request, Response
 from bson import ObjectId
@@ -14,6 +15,8 @@ from utils.auth import get_current_user, require_auth
 from utils.freemium import has_exceeded_daily_limit, get_max_cards_for_role
 from utils.rate_limit import limiter
 from config import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -107,13 +110,39 @@ async def generate_deck(
 
     # Step 4: Update freemium counters for authenticated free users
     if user_id and user_doc:
-        await db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {
-                "$set": {"last_generation_date": datetime.utcnow()},
-                "$inc": {"generations_today": 1},
-            },
-        )
+        # Atomic update: increment counter, reset if day changed
+        today_colombia = datetime.now(pytz.timezone(settings.timezone)).replace(hour=0, minute=0, second=0, microsecond=0)
+        last_gen = user_doc.get("last_generation_date")
+        
+        if last_gen:
+            if last_gen.tzinfo is None:
+                last_gen = pytz.utc.localize(last_gen)
+            last_gen_colombia = last_gen.astimezone(pytz.timezone(settings.timezone))
+            if last_gen_colombia.date() != today_colombia.date():
+                # New day — reset counter
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {
+                        "$set": {"last_generation_date": datetime.utcnow(), "generations_today": 1},
+                    },
+                )
+            else:
+                # Same day — increment
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {
+                        "$set": {"last_generation_date": datetime.utcnow()},
+                        "$inc": {"generations_today": 1},
+                    },
+                )
+        else:
+            # First generation ever
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {"last_generation_date": datetime.utcnow(), "generations_today": 1},
+                },
+            )
 
     logger.info(f"Deck generated: {deck_id} | model: {model_used} | cards: {len(cards)} | user: {user_id or 'anonymous'}")
 
@@ -263,6 +292,20 @@ async def add_card(
     deck = await db.decks.find_one({"_id": obj_id, "deleted_at": None})
     if not deck:
         raise HTTPException(status_code=404, detail="Mazo no encontrado")
+
+    # Verify ownership
+    user_id = current_user["sub"] if current_user else None
+    deck_user_id = str(deck.get("user_id")) if deck.get("user_id") else None
+    deck_anon_id = deck.get("anonymous_session_id")
+
+    is_owner = (
+        (user_id and deck_user_id and deck_user_id == user_id)
+        or (anonymous_session_id and deck_anon_id and deck_anon_id == anonymous_session_id)
+        or (not deck_user_id and not deck_anon_id)
+    )
+
+    if not is_owner:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este mazo")
 
     if not payload.phrase and not payload.timestamp:
         raise HTTPException(

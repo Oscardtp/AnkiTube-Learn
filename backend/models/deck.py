@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Literal
 from datetime import datetime
+import re
 
 
 class Card(BaseModel):
@@ -35,10 +36,22 @@ class DeckInDB(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    youtube_url: str
+    youtube_url: str = Field(..., max_length=500)
     level: Literal["A1", "A2", "B1", "B2", "C1", "C2"]
-    context: str = "general"
-    anonymous_session_id: Optional[str] = None
+    context: str = Field(default="general", max_length=100)
+    anonymous_session_id: Optional[str] = Field(None, max_length=100)
+
+    @field_validator("youtube_url")
+    @classmethod
+    def validate_youtube_url(cls, v: str) -> str:
+        """Validate that URL is a valid YouTube URL."""
+        patterns = [
+            r"(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)",
+            r"youtube\.com\/shorts\/([^&\n?#]+)",
+        ]
+        if not any(re.search(pattern, v) for pattern in patterns):
+            raise ValueError("URL debe ser un enlace válido de YouTube")
+        return v
 
 
 class GenerateResponse(BaseModel):
