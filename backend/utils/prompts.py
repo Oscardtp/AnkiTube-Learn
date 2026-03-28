@@ -2,6 +2,7 @@
 build_prompt() — identical system prompt for ALL AI models.
 Only the API client and call parameters change per model.
 """
+import re
 
 CEFR_DESCRIPTIONS = {
     "A1": "principiante absoluto — frases muy simples, vocabulario de uso diario como saludos, números y colores",
@@ -32,6 +33,41 @@ Ejemplos de colombian_note correcto:
 """
 
 
+def _sanitize_for_prompt(text: str) -> str:
+    """
+    Sanitize user input to prevent prompt injection.
+    Removes common injection patterns while preserving legitimate content.
+    """
+    if not text:
+        return ""
+    
+    # Remove common injection patterns
+    injection_patterns = [
+        r"(?i)ignore\s+(all\s+)?previous\s+(instructions|rules|prompts)",
+        r"(?i)ignore\s+(all\s+)?above",
+        r"(?i)disregard\s+(all\s+)?(previous|above|prior)",
+        r"(?i)forget\s+(all\s+)?(previous|above|prior)",
+        r"(?i)you\s+are\s+now",
+        r"(?i)new\s+instructions?:",
+        r"(?i)system\s*prompt",
+        r"(?i)act\s+as\s+(a\s+)?",
+        r"(?i)pretend\s+(you\s+are|to\s+be)",
+        r"(?i)do\s+not\s+follow",
+        r"(?i)instead\s+(of|do|respond|output|return)",
+    ]
+    
+    sanitized = text
+    for pattern in injection_patterns:
+        sanitized = re.sub(pattern, "[filtered]", sanitized)
+    
+    # Limit length to prevent prompt overflow
+    max_length = 10000
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "... [truncated]"
+    
+    return sanitized
+
+
 def build_prompt(
     transcript_text: str,
     level: str,
@@ -46,12 +82,16 @@ def build_prompt(
 
     cefr_desc = CEFR_DESCRIPTIONS.get(level, CEFR_DESCRIPTIONS["B1"])
     context_desc = CONTEXT_DESCRIPTIONS.get(context, CONTEXT_DESCRIPTIONS["general"])
+    
+    # Sanitize user inputs to prevent prompt injection
+    safe_transcript = _sanitize_for_prompt(transcript_text)
+    safe_context = _sanitize_for_prompt(context_desc)
 
     system_prompt = f"""Eres un experto en pedagogía del inglés para hispanohablantes colombianos.
 Tu única función es analizar transcripciones de videos de YouTube y generar tarjetas de memoria (flashcards) para Anki.
 
 NIVEL DEL USUARIO: {level} — {cefr_desc}
-CONTEXTO: {context_desc}
+CONTEXTO: {safe_context}
 
 REGLAS ABSOLUTAS — NUNCA las rompas:
 1. Responde ÚNICAMENTE con JSON válido. Cero texto antes o después. Cero bloques markdown.
@@ -90,7 +130,7 @@ ESTRUCTURA JSON REQUERIDA:
     user_prompt = f"""Analiza esta transcripción y genera las tarjetas siguiendo exactamente el formato indicado.
 
 TRANSCRIPCIÓN:
-{transcript_text}
+{safe_transcript}
 
 Recuerda: JSON válido únicamente, entre {min_cards} y {max_cards} tarjetas, nivel {level}, colombian_note obligatorio en cada tarjeta."""
 

@@ -40,11 +40,12 @@ def has_exceeded_daily_limit(user_doc: dict) -> bool:
     last_gen_colombia = last_gen.astimezone(COLOMBIA_TZ)
     today_colombia = get_colombia_today()
 
-    # Same day in Colombia timezone
-    if last_gen_colombia.date() == today_colombia.date():
-        return generations_today >= settings.free_max_decks_per_day
+    # Different day — reset counter
+    if last_gen_colombia.date() != today_colombia.date():
+        return False
 
-    return False
+    # Same day in Colombia timezone
+    return generations_today >= settings.free_max_decks_per_day
 
 
 def get_max_cards_for_role(role: str) -> int:
