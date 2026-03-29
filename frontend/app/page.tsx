@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import {
   Play,
@@ -23,6 +22,7 @@ import {
   CheckCircle2,
   Volume2,
 } from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
 
 // Data
 const CEFR_LEVELS = [
@@ -181,8 +181,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-surface">
+      <MinimalNavbar />
       {/* Hero Section */}
-      <section className="pt-24 pb-16 px-6 md:px-12">
+      <section id="hero" className="pt-24 pb-16 px-6 md:px-12">
         <div className="max-w-6xl mx-auto">
           {/* Hero Content */}
           <div className="text-center mb-12">
@@ -205,10 +206,10 @@ export default function LandingPage() {
                 <Sparkles className="w-5 h-5" />
                 Generar mi primer mazo
               </Link>
-              <p className="text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                Sin tarjeta. Sin registro. Solo pega el enlace.
-              </p>
             </div>
+            <p className="text-xs font-medium text-on-surface-variant uppercase tracking-wider mt-4">
+              Sin tarjeta. Sin registro. Solo pega el enlace.
+            </p>
           </div>
 
           {/* Demo Placeholder */}
@@ -467,7 +468,7 @@ export default function LandingPage() {
       </section>
 
       {/* Differentiator - Colombian Context */}
-      <section className="section-padding overflow-hidden">
+      <section id="features" className="section-padding overflow-hidden">
         <div className="container-limit">
           <div className="flex flex-col lg:flex-row gap-16 items-center">
             <div className="flex-1">
@@ -529,25 +530,20 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="precios" className="section-padding bg-surface-container-low">
+      <section id="pricing" className="section-padding bg-surface-container-low">
         <div className="container-limit">
           <div className="text-center mb-16">
-            <span className="text-secondary font-bold tracking-widest text-xs uppercase mb-4 block">INVERSIÓN EN TU FUTURO</span>
             <h2 className="text-4xl md:text-5xl font-extrabold text-on-surface mb-6 tracking-tight">
-              Elige quién quieres ser
+              Planes simples. Resultados reales.
             </h2>
             <p className="text-lg text-on-surface-variant max-w-2xl mx-auto">
-              Hágale pues, elige el camino que mejor se adapte a tu ritmo. Sin contratos raros, cancela cuando quieras.
+              Empieza gratis. Crece cuando quieras.
             </p>
-            <div className="mt-8 inline-flex items-center gap-2 bg-error/10 text-error px-4 py-2 rounded-full text-sm font-semibold">
-              <span className="w-2 h-2 bg-error rounded-full animate-pulse"></span>
-              Solo quedan 12 cupos de precio fundador
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
             {/* Explorador - Left */}
-            <div className="bg-surface-container-lowest rounded-xl p-8 flex flex-col transition-all hover:shadow-2xl hover:shadow-on-surface/5 relative overflow-hidden group">
+            <div className="bg-surface-container-lowest rounded-3xl p-8 flex flex-col transition-all hover:shadow-2xl hover:shadow-on-surface/5 relative overflow-hidden group" style={{ boxShadow: '0 8px 24px rgba(25, 28, 30, 0.06)' }}>
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-on-surface mb-2">Explorador</h3>
                 <div className="flex items-baseline gap-1">
@@ -558,29 +554,32 @@ export default function LandingPage() {
               <ul className="space-y-4 mb-10 flex-grow">
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">1 video/día</span>
+                  <span className="text-sm">1 mazo/día</span>
                 </li>
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Contexto general</span>
+                  <span className="text-sm">IA Estándar</span>
                 </li>
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Hasta 15 tarjetas diarias</span>
+                  <span className="text-sm">Exportación Anki</span>
                 </li>
               </ul>
               <button className="w-full py-4 rounded-full font-bold text-sm bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors">
-                Tú dale, es gratis
+                Elegir Gratis
               </button>
             </div>
 
             {/* Fluente - Center (Featured) */}
-            <div className="bg-surface-container-lowest rounded-xl p-8 flex flex-col relative overflow-hidden border-2 border-primary md:-translate-y-4 shadow-2xl">
+            <div className="bg-surface-container-lowest rounded-3xl p-8 flex flex-col relative overflow-hidden md:-translate-y-4" style={{ boxShadow: '0 8px 24px rgba(25, 28, 30, 0.06)', backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, 0.9)' }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-primary-container text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-10">
+                Más popular
+              </div>
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-on-surface mb-2">Fluente</h3>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-primary">$15.000</span>
-                  <span className="text-on-surface-variant text-sm">COP/mes</span>
+                  <span className="text-on-surface-variant text-sm">/ mes</span>
                 </div>
               </div>
               <ul className="space-y-4 mb-10 flex-grow">
@@ -590,55 +589,58 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Todos los contextos de uso</span>
+                  <span className="text-sm">IA Contextual Pro</span>
                 </li>
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Audio original & HD</span>
+                  <span className="text-sm">Audio HD natural</span>
                 </li>
                 <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Modo estudio SRS avanzado</span>
+                  <span className="text-sm">Sin anuncios</span>
                 </li>
               </ul>
-              <button className="w-full py-4 rounded-full font-bold text-sm bg-primary text-white hover:bg-primary-container hover:text-on-primary-container transition-colors">
-                ¡Hágale pues!
+              <button className="w-full py-4 rounded-full font-bold text-sm bg-gradient-to-r from-primary to-primary-container text-white hover:opacity-90 transition-all">
+                ¡Me vuelvo fluente!
               </button>
             </div>
 
             {/* Nativo - Right */}
-            <div className="bg-inverse-surface rounded-xl p-8 flex flex-col text-inverse-on-surface transition-all hover:shadow-2xl hover:shadow-on-surface/5">
+            <div className="bg-surface-container-lowest rounded-3xl p-8 flex flex-col transition-all hover:shadow-2xl hover:shadow-on-surface/5" style={{ boxShadow: '0 8px 24px rgba(25, 28, 30, 0.06)' }}>
               <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2">Nativo</h3>
+                <h3 className="text-xl font-bold text-on-surface mb-2">Nativo</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold">$120.000</span>
-                  <span className="opacity-60 text-sm">COP/año</span>
+                  <span className="text-4xl font-extrabold text-on-surface">$120.000</span>
+                  <span className="text-on-surface-variant text-sm">/ año</span>
                 </div>
-                <span className="text-secondary font-bold text-xs">Pagas solo $10.000 al mes</span>
               </div>
               <ul className="space-y-4 mb-10 flex-grow">
-                <li className="flex items-start gap-3 opacity-80">
+                <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm font-bold">Todo lo de Fluente</span>
+                  <span className="text-sm font-medium text-on-surface">Todo en Fluente</span>
                 </li>
-                <li className="flex items-start gap-3 opacity-80">
+                <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Soporte VIP por WhatsApp</span>
+                  <span className="text-sm">Soporte vía WhatsApp</span>
                 </li>
-                <li className="flex items-start gap-3 opacity-80">
+                <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Badge Fundador en perfil</span>
+                  <span className="text-sm">Comunidad privada</span>
                 </li>
-                <li className="flex items-start gap-3 opacity-80">
+                <li className="flex items-start gap-3 text-on-surface-variant">
                   <CheckCircle2 className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">Acceso anticipado a features</span>
+                  <span className="text-sm">Acceso anticipado beta</span>
                 </li>
               </ul>
-              <button className="w-full py-4 rounded-full font-bold text-sm border-2 border-white/20 hover:bg-white/10 transition-all">
-                Elige ser Nativo
+              <button className="w-full py-4 rounded-full font-bold text-sm bg-gradient-to-r from-primary to-primary-container text-white hover:opacity-90 transition-all">
+                Plan Pro
               </button>
             </div>
           </div>
+
+          <p className="text-center text-sm text-on-surface-variant mt-8">
+            Sin contratos. Cancelas cuando quieras.
+          </p>
         </div>
       </section>
 

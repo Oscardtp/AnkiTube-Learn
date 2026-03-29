@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle } from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -60,8 +61,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-surface">
+      <MinimalNavbar />
+      <div className="flex items-center justify-center p-6 pt-8">
+        <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-on-surface mb-2">Crear cuenta</h1>
           <p className="text-on-surface-variant">Regístrate para guardar tus mazos</p>
@@ -147,6 +150,7 @@ export default function RegisterPage() {
             </a>
           </p>
         </form>
+        </div>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Users, Layers, MessageSquare, Key } from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
 
 interface Metrics {
   total_users: number
@@ -164,11 +165,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-on-surface mb-2">Panel de administración</h1>
-        <p className="text-on-surface-variant">Métricas y gestión del sistema</p>
-      </div>
+    <div className="min-h-screen bg-surface">
+      <MinimalNavbar />
+      <div className="p-6 max-w-6xl mx-auto pt-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-on-surface mb-2">Panel de administración</h1>
+          <p className="text-on-surface-variant">Métricas y gestión del sistema</p>
+        </div>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
