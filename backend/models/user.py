@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, Literal
 from datetime import datetime
+import re
 
 
 class WizardAnswers(BaseModel):
@@ -31,10 +32,19 @@ class UserInDB(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(
-        min_length=8,
-        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
-    )
+    password: str = Field(min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password has at least one lowercase, one uppercase, and one digit."""
+        if not re.search(r"[a-z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra minúscula")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+        if not re.search(r"\d", v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        return v
 
 
 class UserLogin(BaseModel):

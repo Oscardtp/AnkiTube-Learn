@@ -5,7 +5,7 @@ Superadmin panel router.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends, Header, Request
 from bson import ObjectId
 
 from database import get_db
@@ -18,12 +18,12 @@ settings = get_settings()
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-@limiter.limit("5/minute")
-def verify_2fa(x_2fa_code: Optional[str] = Header(None, alias="X-2FA-Code")) -> None:
+def verify_2fa(request: Request, x_2fa_code: Optional[str] = Header(None, alias="X-2FA-Code")) -> None:
     """
     Verify 2FA code on every superadmin request.
     Passed as HTTP header: X-2FA-Code: <code>
     """
+    # Rate limiting is applied at the endpoint level, not here
     if not x_2fa_code:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
