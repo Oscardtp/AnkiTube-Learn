@@ -85,7 +85,7 @@ export function LandingLayout({ children }: LandingLayoutProps) {
 
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-outline-variant/10 text-center">
           <p className="text-sm text-on-surface-variant">
-            © 2024 AnkiTube Learn. Hecho en Colombia con 💙.
+            © 2026 AnkiTube Learn. Hecho en Colombia con 💙.
           </p>
         </div>
       </footer>
