@@ -3,13 +3,16 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Settings, Bell, Palette, Globe } from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
 
 interface UserData {
   id: string
   email: string
   role: string
-  setup_wizard_completed: boolean
-  generations_today: number
+  created_at: string
+  decks_generated_today: number
+  total_decks: number
+  total_cards: number
 }
 
 export default function SettingsPage() {
@@ -25,19 +28,41 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState("es")
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      router.push("/login")
-      return
+    async function loadUserData() {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/login")
+        return
+      }
+
+      const userData = localStorage.getItem("user")
+      if (userData) {
+        setUser(JSON.parse(userData))
+      }
+
+      // Actualizar desde el backend
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+        const res = await fetch(`${apiUrl}/api/auth/me`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        })
+
+        if (res.ok) {
+          const userData = await res.json()
+          setUser(userData)
+          localStorage.setItem("user", JSON.stringify(userData))
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-
-    setLoading(false)
-  }, [])
+    loadUserData()
+  }, [router])
 
   function handleSave() {
     setSuccess("Configuración guardada exitosamente")
@@ -57,30 +82,32 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-on-surface mb-2">Configuración</h1>
-        <p className="text-on-surface-variant">Personaliza tu experiencia en AnkiTube</p>
-      </div>
+    <div className="min-h-screen bg-surface">
+      <MinimalNavbar />
+      <div className="p-6 max-w-2xl mx-auto pt-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-on-surface mb-2">Configuración</h1>
+          <p className="text-on-surface-variant">Personaliza tu experiencia en AnkiTube</p>
+        </div>
 
-      {error && (
-        <div className="mb-6 p-4 bg-error-container/30 rounded-xl border border-error/20">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-error" />
-            <p className="text-sm text-on-error-container">{error}</p>
+        {error && (
+          <div className="mb-6 p-4 bg-error-container/30 rounded-xl border border-error/20">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-error" />
+              <p className="text-sm text-on-error-container">{error}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {success && (
-        <div className="mb-6 p-4 bg-primary-container/30 rounded-xl border border-primary/20">
-          <p className="text-sm text-on-primary-container">{success}</p>
-        </div>
-      )}
+        {success && (
+          <div className="mb-6 p-4 bg-primary-container/30 rounded-xl border border-primary/20">
+            <p className="text-sm text-on-primary-container">{success}</p>
+          </div>
+        )}
 
-      <div className="space-y-6">
-        {/* Notifications */}
-        <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+        <div className="space-y-6">
+          {/* Notifications */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
           <div className="flex items-center gap-3 mb-4">
             <Bell className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-on-surface">Notificaciones</h2>
@@ -104,10 +131,10 @@ export default function SettingsPage() {
               />
             </button>
           </div>
-        </div>
+          </div>
 
-        {/* Appearance */}
-        <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+          {/* Appearance */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
           <div className="flex items-center gap-3 mb-4">
             <Palette className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-on-surface">Apariencia</h2>
@@ -131,10 +158,10 @@ export default function SettingsPage() {
               />
             </button>
           </div>
-        </div>
+          </div>
 
-        {/* Language */}
-        <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+          {/* Language */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
           <div className="flex items-center gap-3 mb-4">
             <Globe className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-on-surface">Idioma</h2>
@@ -149,10 +176,10 @@ export default function SettingsPage() {
             <option value="en">English</option>
             <option value="pt">Português</option>
           </select>
-        </div>
+          </div>
 
-        {/* Account info */}
-        <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+          {/* Account info */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
           <div className="flex items-center gap-3 mb-4">
             <Settings className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-on-surface">Información de cuenta</h2>
@@ -169,18 +196,27 @@ export default function SettingsPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-on-surface-variant">Generaciones hoy</span>
-              <span className="text-on-surface">{user.generations_today}</span>
+              <span className="text-on-surface">{user.decks_generated_today}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-on-surface-variant">Total mazos</span>
+              <span className="text-on-surface">{user.total_decks}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-on-surface-variant">Total tarjetas</span>
+              <span className="text-on-surface">{user.total_cards}</span>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          className="w-full bg-primary text-white py-3 px-6 rounded-xl font-semibold hover:opacity-90 transition-opacity"
-        >
-          Guardar configuración
-        </button>
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            className="w-full bg-primary text-white py-3 px-6 rounded-xl font-semibold hover:opacity-90 transition-opacity"
+          >
+            Guardar configuración
+          </button>
+        </div>
       </div>
     </div>
   )

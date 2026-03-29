@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Download, Loader2, AlertCircle } from "lucide-react"
+import {
+  Download,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  CheckCircle2,
+  Square,
+  CheckSquare,
+} from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
+import CardFlip from "@/components/CardFlip"
+import RegisterModal from "@/components/RegisterModal"
 
 interface Card {
   front: string
@@ -13,6 +26,7 @@ interface Card {
   colombian_note: string
   timestamp_start: number
   timestamp_end: number
+  audio_filename?: string
   card_type: string
 }
 
@@ -37,6 +51,13 @@ export default function PreviewPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [downloading, setDownloading] = useState(false)
+  const [currentCard, setCurrentCard] = useState(0)
+  const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [pendingAction, setPendingAction] = useState<"download" | "study" | null>(null)
+  const [toast, setToast] = useState("")
+  const [selectedCards, setSelectedCards] = useState<Set<number>>(new Set())
+
+  const isAuthenticated = typeof window !== "undefined" && !!localStorage.getItem("token")
 
   useEffect(() => {
     async function fetchDeck() {
@@ -67,10 +88,19 @@ export default function PreviewPage() {
   async function handleDownload() {
     if (!deck) return
 
+    if (!isAuthenticated) {
+      setPendingAction("download")
+      setShowRegisterModal(true)
+      return
+    }
+
     setDownloading(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/${deckId}/download`)
+      const token = localStorage.getItem("token")
+      const res = await fetch(`${apiUrl}/api/decks/${deckId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
 
       if (!res.ok) {
         throw new Error("Error al descargar el archivo")
@@ -93,9 +123,64 @@ export default function PreviewPage() {
     }
   }
 
+  function handleStudy() {
+    if (!isAuthenticated) {
+      setPendingAction("study")
+      setShowRegisterModal(true)
+      return
+    }
+
+    // Navigate to study page (to be implemented)
+    router.push(`/study/${deckId}`)
+  }
+
+  function handleRegisterSuccess() {
+    // Show toast
+    setToast("Mazo guardado en tu cuenta ✓")
+    setTimeout(() => setToast(""), 4000)
+
+    // Execute pending action
+    if (pendingAction === "download") {
+      handleDownload()
+    } else if (pendingAction === "study") {
+      router.push(`/study/${deckId}`)
+    }
+    setPendingAction(null)
+  }
+
+  function toggleCardSelection(index: number) {
+    setSelectedCards(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
+
+  function selectAll() {
+    if (deck) {
+      setSelectedCards(new Set(deck.cards.map((_, i) => i)))
+    }
+  }
+
+  function deselectAll() {
+    setSelectedCards(new Set())
+  }
+
+  function goToPrevCard() {
+    if (currentCard > 0) setCurrentCard(currentCard - 1)
+  }
+
+  function goToNextCard() {
+    if (deck && currentCard < deck.cards.length - 1) setCurrentCard(currentCard + 1)
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-surface flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
@@ -103,20 +188,23 @@ export default function PreviewPage() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="bg-error-container/30 rounded-xl p-6 border border-error/20">
-          <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-error" />
-            <h2 className="text-lg font-semibold text-on-error-container">Error</h2>
+      <div className="min-h-screen bg-surface">
+        <MinimalNavbar logoNotLink />
+        <div className="p-6 max-w-3xl mx-auto">
+          <div className="bg-error-container/30 rounded-xl p-6 border border-error/20">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="w-6 h-6 text-error" />
+              <h2 className="text-lg font-semibold text-on-error-container">Error</h2>
+            </div>
+            <p className="text-on-error-container mb-4">{error}</p>
+            <button
+              onClick={() => router.push("/generate")}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Volver a generar
+            </button>
           </div>
-          <p className="text-on-error-container mb-4">{error}</p>
-          <button
-            onClick={() => router.push("/generate")}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver a generar
-          </button>
         </div>
       </div>
     )
@@ -127,108 +215,176 @@ export default function PreviewPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => router.push("/generate")}
-          className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Generar otro mazo
-        </button>
+    <div className="min-h-screen bg-surface">
+      <MinimalNavbar logoNotLink />
 
-        <div className="flex items-start gap-4">
-          <img
-            src={deck.video_thumbnail}
-            alt={deck.video_title}
-            className="w-32 h-24 object-cover rounded-lg"
-          />
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-on-surface mb-1">{deck.video_title}</h1>
-            <div className="flex items-center gap-3 text-sm text-on-surface-variant">
-              <span className="bg-primary-container/30 text-on-primary-container px-2 py-1 rounded">
-                {deck.level}
-              </span>
-              <span>{deck.total_cards} tarjetas</span>
-              <span className="text-outline">•</span>
-              <span>{deck.context}</span>
+      <div className="max-w-4xl mx-auto px-6 md:px-12 py-8">
+        {/* Video Info */}
+        <div className="mb-8">
+          <div className="flex items-start gap-4">
+            <img
+              src={deck.video_thumbnail}
+              alt={deck.video_title}
+              className="w-32 h-24 object-cover rounded-xl shadow-card"
+            />
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-on-surface mb-2">{deck.video_title}</h1>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-on-surface-variant">
+                <span className="bg-primary-container/30 text-on-primary-container px-3 py-1 rounded-full text-xs font-semibold">
+                  {deck.level}
+                </span>
+                <span>{deck.total_cards} tarjetas</span>
+                <span className="text-outline">•</span>
+                <span className="capitalize">{deck.context}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Download button */}
-      <div className="mb-6">
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50"
-        >
-          {downloading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Descargando...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4" />
-              Descargar mazo Anki (.apkg)
-            </>
-          )}
-        </button>
-      </div>
+        {/* CardFlip Component */}
+        {deck.cards.length > 0 && (
+          <div className="mb-8">
+            <CardFlip
+              card={deck.cards[currentCard]}
+              index={currentCard}
+              total={deck.cards.length}
+              isSelected={selectedCards.has(currentCard)}
+              onToggleSelection={toggleCardSelection}
+              showSelection={selectedCards.size > 0}
+            />
 
-      {/* Cards preview */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-on-surface">Vista previa de tarjetas</h2>
-
-        {deck.cards.map((card, index) => (
-          <div
-            key={index}
-            className="bg-surface-container-low rounded-xl p-4 border border-outline-variant/20"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-primary bg-primary-container/30 px-2 py-1 rounded">
-                {card.card_type}
-              </span>
-              <span className="text-xs text-outline">
-                {Math.floor(card.timestamp_start / 60)}:{String(Math.floor(card.timestamp_start % 60)).padStart(2, "0")} - {Math.floor(card.timestamp_end / 60)}:{String(Math.floor(card.timestamp_end % 60)).padStart(2, "0")}
-              </span>
+            {/* Navigation dots */}
+            <div className="flex items-center justify-center gap-1.5 mt-6">
+              {deck.cards.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentCard(idx)}
+                  title={`Ir a tarjeta ${idx + 1}`}
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
+                    idx === currentCard
+                      ? "bg-[#1A56DB] scale-125"
+                      : selectedCards.has(idx)
+                      ? "bg-primary"
+                      : idx < currentCard
+                      ? "bg-[#B5D4F4]"
+                      : "bg-outline-variant/40"
+                  }`}
+                />
+              ))}
             </div>
 
-            <div className="mb-3">
-              <p className="text-sm font-medium text-on-surface mb-1">Frente:</p>
-              <p className="text-on-surface">{card.front}</p>
-            </div>
-
-            <div className="mb-3">
-              <p className="text-sm font-medium text-on-surface mb-1">Atrás:</p>
-              <p className="text-on-surface">{card.back}</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="font-medium text-on-surface-variant mb-1">Palabra clave:</p>
-                <p className="text-on-surface">{card.keyword}</p>
-              </div>
-              <div>
-                <p className="font-medium text-on-surface-variant mb-1">Nota colombiana:</p>
-                <p className="text-on-surface">{card.colombian_note}</p>
-              </div>
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-outline-variant/20">
-              <p className="text-xs text-on-surface-variant">
-                <span className="font-medium">Gramática:</span> {card.grammar_note}
-              </p>
-              <p className="text-xs text-on-surface-variant mt-1">
-                <span className="font-medium">Contexto:</span> {card.context_note}
-              </p>
+            {/* Previous/Next buttons */}
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <button
+                onClick={goToPrevCard}
+                disabled={currentCard === 0}
+                title="Tarjeta anterior"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  currentCard === 0
+                    ? "bg-surface-container-low text-outline cursor-not-allowed"
+                    : "bg-surface-container-lowest text-on-surface hover:bg-surface-container-high shadow-sm"
+                }`}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={goToNextCard}
+                disabled={currentCard === deck.cards.length - 1}
+                title="Tarjeta siguiente"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  currentCard === deck.cards.length - 1
+                    ? "bg-surface-container-low text-outline cursor-not-allowed"
+                    : "bg-surface-container-lowest text-on-surface hover:bg-surface-container-high shadow-sm"
+                }`}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Selection Actions */}
+        {deck.cards.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+            <button
+              onClick={selectedCards.size === deck.cards.length ? deselectAll : selectAll}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-high text-on-surface font-medium text-sm hover:bg-surface-container-highest transition-all"
+            >
+              {selectedCards.size === deck.cards.length ? (
+                <>
+                  <CheckSquare className="w-4 h-4" />
+                  Deseleccionar todas
+                </>
+              ) : (
+                <>
+                  <Square className="w-4 h-4" />
+                  Seleccionar todas
+                </>
+              )}
+            </button>
+            {selectedCards.size > 0 && (
+              <span className="text-sm text-on-surface-variant font-medium">
+                {selectedCards.size} seleccionada{selectedCards.size !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-container text-white px-8 py-4 rounded-full font-bold text-base hover:opacity-90 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Descargando...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                {selectedCards.size > 0 ? `Descargar seleccionadas (${selectedCards.size})` : "Descargar mazo"}
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleStudy}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-8 py-4 rounded-full font-bold text-base hover:bg-surface-container-highest transition-all active:scale-[0.98]"
+          >
+            Estudiar aquí
+          </button>
+
+          <button
+            onClick={() => router.push("/generate")}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 text-on-surface-variant font-medium px-6 py-4 rounded-full hover:text-primary transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Generar otro
+          </button>
+        </div>
       </div>
+
+      {/* Register Modal */}
+      <RegisterModal
+        isOpen={showRegisterModal}
+        onClose={() => {
+          setShowRegisterModal(false)
+          setPendingAction(null)
+        }}
+        deckId={deckId}
+        onSuccess={handleRegisterSuccess}
+      />
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-secondary text-white px-6 py-3 rounded-full shadow-elevated flex items-center gap-2 animate-in">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-medium text-sm">{toast}</span>
+        </div>
+      )}
     </div>
   )
 }

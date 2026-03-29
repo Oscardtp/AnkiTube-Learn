@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Trash2, Download, Eye } from "lucide-react"
+import MinimalNavbar from "@/components/MinimalNavbar"
 
 interface Deck {
   deck_id: string
@@ -142,15 +143,17 @@ export default function MyDecksPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-on-surface mb-2">Mis mazos</h1>
-        <p className="text-on-surface-variant">
-          {decks.length === 0
-            ? "Aún no has generado ningún mazo"
-            : `${decks.length} mazo${decks.length !== 1 ? "s" : ""} generado${decks.length !== 1 ? "s" : ""}`}
-        </p>
-      </div>
+    <div className="min-h-screen bg-surface">
+      <MinimalNavbar />
+      <div className="p-6 max-w-4xl mx-auto pt-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-on-surface mb-2">Mis mazos</h1>
+          <p className="text-on-surface-variant">
+            {decks.length === 0
+              ? "Aún no has generado ningún mazo"
+              : `${decks.length} mazo${decks.length !== 1 ? "s" : ""} generado${decks.length !== 1 ? "s" : ""}`}
+          </p>
+        </div>
 
       {decks.length === 0 ? (
         <div className="text-center py-12">
@@ -223,6 +226,7 @@ export default function MyDecksPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
