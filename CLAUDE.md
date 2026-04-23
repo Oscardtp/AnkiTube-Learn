@@ -1,6 +1,6 @@
 # AnkiTube Learn — CLAUDE.md
 ## Contexto completo + Estado actual
-**Última actualización:** Marzo 2026 | Colombia
+**Última actualización:** Abril 2026 | Colombia
 
 ---
 
@@ -16,61 +16,95 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 
 ---
 
-## 📊 Estado Actual — Marzo 2026
+## 📊 Estado Actual — Abril 2026
 
-### ✅ COMPLETO
+### ✅ COMPLETO Y PRODUCCIÓN
 
-**Backend FastAPI** — 27 archivos, totalmente funcional, corriendo localmente en `http://127.0.0.1:8000`
-- Endpoints principales probados (/generate, /preview, /download, /feedback, licencias, superadmin)
-- MongoDB Atlas conectado
-- AI Router con fallback Gemini Flash → Pro → Claude
-- Modo mock activado (`USE_MOCK_AI=true` en .env)
-- Genanki generando .apkg con audio embebido
-- Auth con JWT + bcrypt
-- Sistema de licencias tester (ANKI-XXXX-XXXX)
-- Superadmin panel + 2FA en cada request
+**Backend FastAPI** — 27 archivos, producción-ready
+- **Status:** ✅ Desplegado en Railway → `ankitube-learn-production.up.railway.app`
+- **Base de datos:** ✅ MongoDB Atlas + Motor async conectado y funcionando
+- **Cache:** ✅ Redis Cloud configurado y operativo
+- **AI Router:** ✅ Gemini Flash → Gemini Pro → Claude Sonnet (fallback inteligente)
+- **Endpoints:** ✅ Todos probados y verificados (/generate, /preview, /download, /feedback, licencias, superadmin)
+- **Genanki:** ✅ Generando .apkg con audio embebido correctamente
+- **Autenticación:** ✅ JWT + bcrypt con roles (user, premium, tester, superadmin)
+- **Sistema de licencias:** ✅ Tester codes (ANKI-XXXX-XXXX) completamente operativo
+- **Superadmin:** ✅ Panel + 2FA en cada request implementado
 
-**Problemas solucionados en esta sesión:**
-- Python 3.14 incompatible → instalado Python 3.12
-- Rust no instalado → instalado rustup
-- SSL MongoDB → added tls=True, tlsAllowInvalidCertificates=True
-- GOOGLE_API_KEY conflictando desde env sistema → eliminada
-- Contraseña MongoDB incorrecta → reseteada en Atlas
-- bcrypt error → configurado con rounds=12
-- APIs sin créditos → implementado modo mock
+**Seguridad — Problema RESUELTO:**
+- ✅ Credenciales rotadas: MongoDB, Google API, Anthropic API, JWT Secret
+- ✅ `.env` removido de git tracking — nunca expondrá credenciales nuevamente
+- ✅ GitHub `.gitignore` configurado correctamente
+- ✅ Infraestructura en Railway aislada de credenciales locales
 
-### ❌ PENDIENTE
+**Problemas técnicos solucionados:**
+- ✅ Python 3.14 incompatible → instalado Python 3.12
+- ✅ Rust no instalado → rustup instalado
+- ✅ SSL MongoDB → tls=True + tlsAllowInvalidCertificates=True
+- ✅ GOOGLE_API_KEY sistema conflictando → eliminada
+- ✅ Contraseña MongoDB → reseteada en Atlas
+- ✅ bcrypt rounds → ajustado a 12
+- ✅ APIs sin créditos → modo mock implementado
 
-**Frontend Next.js 14** — No iniciado
-- /generate, /preview, /dashboard, /study/[deckId], /superadmin
-- CardFlip.tsx, StudySession.tsx, FeedbackWidget.tsx
-- NextAuth.js integración
-- useInterruptionManager() hook
-- Integración YouTube IFrame API
+### ⏳ EN DESARROLLO — Próximas Prioridades
 
-**Deploy** — No iniciado
-- Railway para backend
-- Vercel para frontend
-- MongoDB Atlas ya configurado
+**Frontend Next.js 14** — Arquitectura confirmada, build iniciado
+- [ ] **Fase 1.1:** Scaffold + Navbar + Layout base (2 horas)
+- [ ] **Fase 1.2:** Página `/generate` 
+  - [ ] Input URL YouTube
+  - [ ] Selector CEFR (A1-C2)
+  - [ ] Selector contexto (General MVP)
+  - [ ] Barra de progreso animada (Extrayendo → Analizando → Generando)
+- [ ] **Fase 1.3:** Página `/preview`
+  - [ ] CardFlip.tsx — animación 3D
+  - [ ] YouTube IFrame API embebido
+  - [ ] Botón "Faltó alguna frase" + POST /api/decks/{id}/cards/add
+  - [ ] Botón "Descargar" y "Estudiar"
+- [ ] **Fase 1.4:** Página `/study/[deckId]`
+  - [ ] Motor SRS SM-2
+  - [ ] Fill-in-the-blank para tarjetas vocabulary
+  - [ ] Flip 3D normal para phrase/idiom
+  - [ ] Celebración post-sesión
+- [ ] **Fase 1.5:** Sistema de autenticación UI
+  - [ ] NextAuth.js configurado
+  - [ ] AuthModal (no redirect, overlay en misma página)
+  - [ ] Transferencia mazo anónimo post-registro
+- [ ] **Fase 1.6:** Funciones globales
+  - [ ] useInterruptionManager() hook — control de pop-ups/notifications
+  - [ ] Sistema de feedback (5 momentos + botón flotante "¿Algo que mejorar?")
+  - [ ] Panel Superadmin UI + LicenseManager
+- [ ] **Fase 1.7:** Deploy
+  - [ ] Vercel setup (conexión GitHub)
+  - [ ] Environment variables en Vercel
+  - [ ] CORS backend/frontend verificado
+
+**Optimizaciones Backend — Fase 2 prep**
+- [ ] OpenRouter como provider IA gratuito (fallback chain)
+- [ ] Ollama local como último fallback (offline capability)
+- [ ] Redis cache para decks frecuentes
+- [ ] Rate limiting refinado por usuario/IP
+- [ ] Logging estructurado para debugging
 
 ---
 
 ## 🛠️ Stack Técnico — Confirmado y Definitivo
 
-| Capa | Tecnología | Estado |
-|---|---|---|
-| **Frontend** | Next.js 14 + Tailwind CSS | ⏳ Pendiente |
-| **Backend** | Python FastAPI async | ✅ Completo |
-| **Base datos** | MongoDB Atlas + Motor async | ✅ Conectado |
-| **Caché** | Redis | ⏳ Pendiente setup |
-| **IA FREE** | Gemini 2.0 Flash | ✅ En mock |
-| **IA FLUENTE** | Gemini 1.5 Pro | ✅ En mock |
-| **IA NATIVO** | Claude Sonnet 4 | ✅ En mock |
-| **Mazos** | genanki → .apkg | ✅ Funcional |
-| **YouTube (MVP)** | Mock con schema real | ✅ Funcional |
-| **YouTube (Fase 2)** | youtube-transcript-api + yt-dlp + FFmpeg | ⏳ Pendiente |
-| **Auth** | NextAuth.js + JWT + bcrypt | ✅ Backend, ⏳ Frontend |
-| **Pagos** | Stripe | ⏳ Fase 2 |
+| Capa | Tecnología | Estado | Ubicación |
+|---|---|---|---|
+| **Frontend** | Next.js 14 + Tailwind CSS | ⏳ En desarrollo | Vercel |
+| **Backend** | Python FastAPI async | ✅ Producción | Railway |
+| **Base datos** | MongoDB Atlas + Motor async | ✅ Conectado | Atlas |
+| **Caché** | Redis Cloud | ✅ Operativo | Redis Cloud |
+| **IA FREE** | Gemini 2.0 Flash | ✅ Funcional | Google AI |
+| **IA FLUENTE** | Gemini 1.5 Pro | ✅ Funcional | Google AI |
+| **IA NATIVO** | Claude Sonnet 4 (claude-sonnet-4-20250514) | ✅ Funcional | Anthropic |
+| **Mazos** | genanki → .apkg | ✅ Funcional | Backend |
+| **YouTube (MVP)** | Mock con schema real | ✅ Funcional | Backend |
+| **YouTube (Fase 2)** | youtube-transcript-api + yt-dlp + FFmpeg | ⏳ Pendiente | Backend |
+| **Auth** | NextAuth.js + JWT + bcrypt | ✅ Backend, ⏳ Frontend | Ambos |
+| **Pagos** | Stripe | ⏳ Fase 2 | — |
+| **Deploy Backend** | Railway | ✅ Activo | Railway |
+| **Deploy Frontend** | Vercel | ⏳ Pendiente | Vercel |
 
 **Regla crítica:** Este stack no cambia. Nunca PostgreSQL, nunca Node.js, nunca Supabase, nunca Firebase.
 
@@ -154,8 +188,9 @@ USE_MOCK_AI=true
 
 ---
 
-## ▶️ Cómo Correr el Backend Localmente
+## ▶️ Cómo Correr Localmente
 
+### Backend FastAPI
 ```powershell
 # 1. Entrar a la carpeta
 cd backend
@@ -166,10 +201,28 @@ cd backend
 # 3. Arrancar el servidor
 uvicorn main:app --reload
 
-# 4. Acceder a:
+# 4. URLs de acceso:
 # http://127.0.0.1:8000                    # root
 # http://127.0.0.1:8000/health             # health check
 # http://127.0.0.1:8000/docs               # Swagger (solo con DEBUG=true)
+```
+
+### Backend Railway (Producción)
+```bash
+# El backend está siempre disponible en:
+https://ankitube-learn-production.up.railway.app
+
+# Verifica status:
+curl https://ankitube-learn-production.up.railway.app/health
+```
+
+### Frontend Next.js (cuando esté listo)
+```bash
+# Próximo: scaffold en Vercel
+cd frontend
+npm install
+npm run dev
+# http://localhost:3000
 ```
 
 ---
@@ -318,17 +371,51 @@ GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
 
 ---
 
-## 🎯 Próximos Pasos — Orden Prioridad
+## 🎯 Próximos Pasos — Orden Estricta
 
-1. ✅ Backend → completo
-2. **⏳ Frontend /generate** — URL input + selector CEFR + barra progreso
-3. **⏳ Frontend /preview** — CardFlip.tsx + video iframe + botón "Faltó frase"
-4. **⏳ Frontend /study/[deckId]** — SM-2 + fill-in-the-blank
-5. **⏳ Auth UI** — NextAuth.js + AuthModal
-6. **⏳ useInterruptionManager()** — Hook global control interrupciones
-7. **⏳ Sistema feedback** — 5 momentos + botón flotante
-8. **⏳ Superadmin UI** — Panel + LicenseManager
-9. **⏳ Deploy** — Railway backend + Vercel frontend
+### Fase 1.1 — Setup Frontend (2-3 horas)
+1. ✅ Backend → completo y en Railway
+2. **→ Scaffold Next.js 14** con Tailwind CSS
+3. → Configurar NextAuth.js
+4. → Crear Navbar + Layout base
+
+### Fase 1.2 — Página `/generate` (4-6 horas)
+5. → Input URL YouTube con placeholder "https://www.youtube.com/watch?v=..."
+6. → Selector CEFR con helper text
+7. → Selector contexto (General solo en MVP)
+8. → Barra de progreso animada (3 pasos)
+9. → POST /api/decks/generate conectado
+
+### Fase 1.3 — Página `/preview` (6-8 horas)
+10. → CardFlip.tsx — animación 3D flip
+11. → YouTube IFrame API embebido
+12. → Botón "Faltó alguna frase" + POST endpoint
+13. → Botón "Descargar" → descarga .apkg
+14. → Botón "Estudiar" → redirige a /study/[deckId]
+
+### Fase 1.4 — Página `/study/[deckId]` (6-8 horas)
+15. → Motor SRS SM-2 en frontend
+16. → Fill-in-the-blank para vocabulary cards
+17. → Flip 3D normal para phrase/idiom
+18. → Celebración post-sesión (números específicos)
+
+### Fase 1.5 — Autenticación UI (4-6 horas)
+19. → AuthModal (overlay, no redirect)
+20. → Transferencia mazo anónimo post-registro
+
+### Fase 1.6 — Sistema Global (6-8 horas)
+21. → useInterruptionManager() hook
+22. → Sistema feedback (5 momentos)
+23. → Botón flotante "¿Algo que mejorar?"
+
+### Fase 1.7 — Superadmin (4 horas)
+24. → Panel Superadmin UI básico
+25. → LicenseManager — crear/ver/revocar códigos
+
+### Fase 1.8 — Deploy (2-3 horas)
+26. → Vercel: conectar GitHub + env vars
+27. → CORS backend/frontend verificado
+28. → Testing E2E: URL → .apkg en Anki
 
 ---
 
@@ -346,4 +433,4 @@ Oscardtp — Autodidacta colombiano frustrado con métodos tradicionales. Su pro
 
 ---
 
-**AnkiTube Learn | CLAUDE.md | Marzo 2026 | Colombia**
+**AnkiTube Learn | CLAUDE.md | Abril 2026 | Colombia**
