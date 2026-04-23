@@ -18,7 +18,7 @@ export default function LoginPage() {
     e.preventDefault()
 
     if (!email.trim() || !password.trim()) {
-      setError("Por favor completa todos los campos")
+      setError("Complete todos los campos, parcero")
       return
     }
 
@@ -67,10 +67,10 @@ export default function LoginPage() {
             }}
           >
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-4 leading-tight">
-              Bienvenido de vuelta 👋
+              ¡Qué gusto verte de nuevo!
             </h1>
             <p className="text-lg text-on-surface-variant max-w-xl mx-auto">
-              Tu progreso te espera. Inicia sesión para continuar.
+              Tu progreso te está esperando. ¡Hágale pues!
             </p>
           </div>
         </div>

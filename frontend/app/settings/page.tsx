@@ -2,18 +2,29 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, AlertCircle, Settings, Bell, Palette, Globe } from "lucide-react"
+import { Loader2, AlertCircle, Settings, Bell, Palette, Globe, Languages, User } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
 
 interface UserData {
   id: string
   email: string
+  name?: string
   role: string
   created_at: string
   decks_generated_today: number
   total_decks: number
   total_cards: number
+  level?: string
 }
+
+const cefrLevels = [
+  { code: "A1", label: "Inicial" },
+  { code: "A2", label: "Básico" },
+  { code: "B1", label: "Intermedio" },
+  { code: "B2", label: "Intermedio-Alto" },
+  { code: "C1", label: "Avanzado" },
+  { code: "C2", label: "Maestría" },
+]
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -23,9 +34,11 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("")
 
   // Settings state
+  const [name, setName] = useState("")
   const [notifications, setNotifications] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
   const [language, setLanguage] = useState("es")
+  const [selectedLevel, setSelectedLevel] = useState("B1")
 
   useEffect(() => {
     async function loadUserData() {
@@ -37,10 +50,12 @@ export default function SettingsPage() {
 
       const userData = localStorage.getItem("user")
       if (userData) {
-        setUser(JSON.parse(userData))
+        const parsed = JSON.parse(userData)
+        setUser(parsed)
+        if (parsed.level) setSelectedLevel(parsed.level)
+        if (parsed.name) setName(parsed.name)
       }
 
-      // Actualizar desde el backend
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
         const res = await fetch(`${apiUrl}/api/auth/me`, {
@@ -53,6 +68,8 @@ export default function SettingsPage() {
           const userData = await res.json()
           setUser(userData)
           localStorage.setItem("user", JSON.stringify(userData))
+          if (userData.level) setSelectedLevel(userData.level)
+          if (userData.name) setName(userData.name)
         }
       } catch (error) {
         console.error("Error loading user data:", error)
@@ -65,7 +82,12 @@ export default function SettingsPage() {
   }, [router])
 
   function handleSave() {
-    setSuccess("Configuración guardada exitosamente")
+    if (user) {
+      const updatedUser = { ...user, name, level: selectedLevel }
+      localStorage.setItem("user", JSON.stringify(updatedUser))
+      setUser(updatedUser)
+    }
+    setSuccess("¡Perfecto! Tu perfil se guardó. ¡Hágale pues!")
     setTimeout(() => setSuccess(""), 3000)
   }
 
@@ -106,6 +128,55 @@ export default function SettingsPage() {
         )}
 
         <div className="space-y-6">
+          {/* Nombre */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+            <div className="flex items-center gap-3 mb-4">
+              <User className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-on-surface">¿Cómo quieres que te llamemos?</h2>
+            </div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              Así es como te saludaremos en tu dashboard.
+            </p>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tu nombre o apodo"
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+          </div>
+
+          {/* Nivel de Inglés */}
+          <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
+            <div className="flex items-center gap-3 mb-4">
+              <Languages className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-on-surface">Nivel de Inglés (CEFR)</h2>
+            </div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              Ajusta la complejidad de las tarjetas generadas.
+            </p>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {cefrLevels.map((level) => (
+                <button
+                  key={level.code}
+                  onClick={() => setSelectedLevel(level.code)}
+                  className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
+                    selectedLevel === level.code
+                      ? "border-primary bg-primary/5"
+                      : "border-outline-variant/30 hover:border-primary/50"
+                  }`}
+                >
+                  <span className={`font-bold ${selectedLevel === level.code ? "text-primary" : "text-on-surface"}`}>
+                    {level.code}
+                  </span>
+                  <span className={`text-[10px] ${selectedLevel === level.code ? "text-primary" : "text-on-surface-variant"}`}>
+                    {level.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Notifications */}
           <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant/20">
           <div className="flex items-center gap-3 mb-4">

@@ -52,7 +52,6 @@ function MaterialIcon({ name, filled = false, className = "" }: { name: string; 
 function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | null }) {
   const navItems = [
     { href: "/dashboard", label: "Panel de Control", icon: "dashboard", active: true },
-    { href: "/my-decks", label: "Mis Mazos", icon: "library_books", active: false },
     { href: "/stats", label: "Estadísticas", icon: "leaderboard", active: false, placeholder: true },
     { href: "/explore", label: "Explorar", icon: "explore", active: false, placeholder: true },
     { href: "/settings", label: "Configuración", icon: "settings", active: false },
@@ -66,16 +65,14 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
     <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest flex-col py-6 px-4 z-50 border-r border-outline-variant/20">
       {/* Logo */}
       <div className="mb-10 px-2">
-        <h1 className="text-2xl font-black text-primary tracking-tighter">AnkiTube Learn</h1>
-        <p className="text-xs font-medium text-on-surface-variant mt-1">
-          {user?.level ? (
-            `Nivel ${user.level}`
-          ) : (
-            <Link href="/profile" className="hover:text-primary transition-colors">
-              Configura tu nivel
-            </Link>
-          )}
-        </p>
+        <Link href="/dashboard">
+          <h1 className="text-2xl font-black text-primary tracking-tighter hover:opacity-80 transition-opacity">AnkiTube Learn</h1>
+        </Link>
+        {user?.level && (
+          <p className="text-xs font-medium text-on-surface-variant mt-1">
+            Nivel {user.level}
+          </p>
+        )}
       </div>
 
       {/* Main Navigation */}
@@ -122,13 +119,6 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
             )}
           </Link>
         ))}
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-all duration-200 w-full"
-        >
-          <MaterialIcon name="logout" className="text-xl" />
-          <span>Cerrar Sesión</span>
-        </button>
       </div>
     </aside>
   )
@@ -242,6 +232,9 @@ export default function DashboardPage() {
   })
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState("")
+  const [generationStep, setGenerationStep] = useState(0)
 
   useEffect(() => {
     async function loadUserData() {
@@ -310,9 +303,61 @@ export default function DashboardPage() {
     router.push("/login")
   }
 
-  function handleGenerate() {
-    if (urlInput.trim()) {
-      router.push(`/generate?url=${encodeURIComponent(urlInput)}`)
+  async function handleGenerate() {
+    if (!urlInput.trim()) return
+
+    const isValidUrl = urlInput.includes("youtube.com/watch") || urlInput.includes("youtu.be/")
+    if (!isValidUrl) {
+      setGenerationError("Esa URL no parece ser de YouTube")
+      return
+    }
+
+    setGenerationError("")
+    setGenerating(true)
+    setGenerationStep(1)
+
+    const stepTimer = setInterval(() => {
+      setGenerationStep((prev) => {
+        if (prev >= 3) {
+          clearInterval(stepTimer)
+          return prev
+        }
+        return prev + 1
+      })
+    }, 1800)
+
+    try {
+      const token = localStorage.getItem("token")
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+
+      const res = await fetch(`${apiUrl}/api/decks/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          youtube_url: urlInput,
+          level: user?.level || "B1",
+          context: "general",
+        }),
+      })
+
+      clearInterval(stepTimer)
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.detail || "No pudimos generar el mazo")
+      }
+
+      const data = await res.json()
+      router.push(`/preview/${data.deck_id}`)
+    } catch (err: unknown) {
+      clearInterval(stepTimer)
+      const message = err instanceof Error ? err.message : "Algo salió mal"
+      setGenerationError(message)
+      setGenerating(false)
+      setGenerationStep(0)
     }
   }
 
@@ -338,7 +383,7 @@ export default function DashboardPage() {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 md:mb-12">
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-on-surface tracking-tight">
-              ¡Hola de nuevo, {user?.email?.split("@")[0] || "Usuario"}!
+              ¡Hola de nuevo, {user?.name || user?.email?.split("@")[0] || "Usuario"}!
             </h2>
             <p className="text-on-surface-variant font-medium mt-1 text-sm md:text-base">
               ¿Listo para otro video? Tu progreso hoy va volando.
@@ -413,26 +458,73 @@ export default function DashboardPage() {
               <p className="text-primary-container brightness-150 font-medium mb-6 md:mb-8 text-base md:text-lg">
                 Pega el link y yo me encargo del resto. ¡Hágale pues!
               </p>
+
+              {/* Progress Steps */}
+              {generating && (
+                <div className="mb-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="text-white font-semibold text-sm">
+                      {generationStep === 1 ? "Extrayendo" : generationStep === 2 ? "Analizando" : "Generando"}...
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3].map((step) => (
+                      <div key={step} className="flex items-center gap-2">
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full transition-all ${
+                            generationStep > step ? "bg-white" : generationStep === step ? "bg-white scale-125" : "bg-white/30"
+                          }`}
+                        />
+                        {step < 3 && (
+                          <div className={`w-6 h-0.5 rounded ${generationStep > step ? "bg-white" : "bg-white/20"}`} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
                   <MaterialIcon name="link" className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 text-xl" />
                   <input
                     type="text"
                     value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value)
+                      setGenerationError("")
+                    }}
                     placeholder="https://www.youtube.com/watch?v=..."
                     className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-none focus:ring-4 focus:ring-primary-container/50 text-on-surface font-medium placeholder:text-slate-400 shadow-lg"
-                    onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+                    onKeyDown={(e) => e.key === "Enter" && !generating && handleGenerate()}
+                    disabled={generating}
                   />
                 </div>
                 <button
                   onClick={handleGenerate}
-                  className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                  disabled={generating || !urlInput.trim()}
+                  className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  <span>Generar</span>
-                  <MaterialIcon name="bolt" filled className="text-xl" />
+                  {generating ? (
+                    <>
+                      <span>Generando...</span>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Generar</span>
+                      <MaterialIcon name="bolt" filled className="text-xl" />
+                    </>
+                  )}
                 </button>
               </div>
+
+              {generationError && (
+                <p className="mt-3 text-sm text-white/90 bg-white/10 px-4 py-2 rounded-lg">
+                  {generationError}
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -443,13 +535,6 @@ export default function DashboardPage() {
             <h3 className="text-xl md:text-2xl font-black text-on-surface tracking-tight">
               Tus mazos recientes
             </h3>
-            <Link
-              href="/my-decks"
-              className="text-primary font-bold text-sm flex items-center gap-1 hover:underline"
-            >
-              Ver toda la biblioteca
-              <MaterialIcon name="arrow_forward" className="text-sm" />
-            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
@@ -464,28 +549,11 @@ export default function DashboardPage() {
                   <MaterialIcon name="library_books" className="text-3xl" />
                 </div>
                 <h4 className="font-bold text-on-surface mb-2">No tienes mazos aún</h4>
-                <p className="text-sm text-on-surface-variant max-w-[300px] mx-auto mb-6">
+                <p className="text-sm text-on-surface-variant max-w-[300px] mx-auto">
                   Genera tu primer mazo pegando un link de YouTube arriba
                 </p>
               </div>
             )}
-
-            {/* Placeholder Card */}
-            <div className="group bg-surface-container-low rounded-3xl border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-white hover:border-primary/40">
-              <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                <MaterialIcon name="add_circle" className="text-3xl" />
-              </div>
-              <h4 className="font-bold text-on-surface mb-2">¿Más lecciones?</h4>
-              <p className="text-sm text-on-surface-variant max-w-[200px] mb-6">
-                Tu curiosidad no tiene límites. Pega otro video y sigue creciendo.
-              </p>
-              <Link
-                href="/generate"
-                className="text-primary font-extrabold text-sm uppercase tracking-widest hover:underline"
-              >
-                Crear Ahora
-              </Link>
-            </div>
           </div>
         </section>
       </main>
