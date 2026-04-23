@@ -159,10 +159,10 @@ export default function MyDecksPage() {
         <div className="text-center py-12">
           <p className="text-on-surface-variant mb-4">Genera tu primer mazo para comenzar</p>
           <button
-            onClick={() => router.push("/generate")}
+            onClick={() => router.push("/dashboard")}
             className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:opacity-90"
           >
-            Generar mazo
+            Ir al dashboard
           </button>
         </div>
       ) : (

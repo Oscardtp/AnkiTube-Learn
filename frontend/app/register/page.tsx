@@ -51,7 +51,7 @@ export default function RegisterPage() {
       localStorage.setItem("token", data.access_token)
       localStorage.setItem("user", JSON.stringify(data.user))
 
-      router.push("/my-decks")
+      router.push("/dashboard")
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al registrarse"
       setError(errorMessage)
