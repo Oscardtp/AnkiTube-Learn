@@ -25,7 +25,7 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 - **Base de datos:** ✅ MongoDB Atlas + Motor async conectado y funcionando
 - **Cache:** ✅ Redis Cloud configurado y operativo
 - **AI Router:** ✅ Gemini Flash → Gemini Pro → Claude Sonnet (fallback inteligente)
-- **Endpoints:** ✅ Todos probados y verificados (/generate, /preview, /download, /feedback, licencias, superadmin)
+- **Endpoints:** ✅ Todos probados y verificados (/generate, /preview, /download, /feedback, /claim, licencias, superadmin)
 - **Genanki:** ✅ Generando .apkg con audio embebido correctamente
 - **Autenticación:** ✅ JWT + bcrypt con roles (user, premium, tester, superadmin)
 - **Sistema de licencias:** ✅ Tester codes (ANKI-XXXX-XXXX) completamente operativo
@@ -34,7 +34,7 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 **Seguridad — Problema RESUELTO:**
 - ✅ Credenciales rotadas: MongoDB, Google API, Anthropic API, JWT Secret
 - ✅ `.env` removido de git tracking — nunca expondrá credenciales nuevamente
-- ✅ GitHub `.gitignore` configurado correctamente
+- ✅ GitHub `.gitignore` configurado correctamente (incluye planes y archivos de planificación)
 - ✅ Infraestructura en Railway aislada de credenciales locales
 
 **Problemas técnicos solucionados:**
@@ -46,37 +46,49 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 - ✅ bcrypt rounds → ajustado a 12
 - ✅ APIs sin créditos → modo mock implementado
 
-### ⏳ EN DESARROLLO — Próximas Prioridades
+### ⏳ EN DESARROLLO — Frontend Next.js 14 (Actualizado Abril 2026)
 
-**Frontend Next.js 14** — Arquitectura confirmada, build iniciado
-- [ ] **Fase 1.1:** Scaffold + Navbar + Layout base (2 horas)
-- [ ] **Fase 1.2:** Página `/generate` 
-  - [ ] Input URL YouTube
-  - [ ] Selector CEFR (A1-C2)
-  - [ ] Selector contexto (General MVP)
-  - [ ] Barra de progreso animada (Extrayendo → Analizando → Generando)
-- [ ] **Fase 1.3:** Página `/preview`
-  - [ ] CardFlip.tsx — animación 3D
-  - [ ] YouTube IFrame API embebido
-  - [ ] Botón "Faltó alguna frase" + POST /api/decks/{id}/cards/add
-  - [ ] Botón "Descargar" y "Estudiar"
-- [ ] **Fase 1.4:** Página `/study/[deckId]`
-  - [ ] Motor SRS SM-2
-  - [ ] Fill-in-the-blank para tarjetas vocabulary
-  - [ ] Flip 3D normal para phrase/idiom
-  - [ ] Celebración post-sesión
-- [ ] **Fase 1.5:** Sistema de autenticación UI
-  - [ ] NextAuth.js configurado
-  - [ ] AuthModal (no redirect, overlay en misma página)
-  - [ ] Transferencia mazo anónimo post-registro
-- [ ] **Fase 1.6:** Funciones globales
-  - [ ] useInterruptionManager() hook — control de pop-ups/notifications
-  - [ ] Sistema de feedback (5 momentos + botón flotante "¿Algo que mejorar?")
-  - [ ] Panel Superadmin UI + LicenseManager
-- [ ] **Fase 1.7:** Deploy
-  - [ ] Vercel setup (conexión GitHub)
-  - [ ] Environment variables en Vercel
-  - [ ] CORS backend/frontend verificado
+**Estado actual:**
+- ✅ `frontend/lib/api.ts` centralizado con 19 wrappers para todos los endpoints
+- ✅ Token JWT enviado automáticamente en todas las peticiones (Authorization header)
+- ✅ Manejo de errores 401/403 con redirección automática a login
+- ✅ Corrección crítica: endpoint `/transfer` → `/claim` en RegisterModal (flujo de registro funcionando)
+- ✅ Centralización total: Dashboard, MyDecks, Preview, Generate, Login, Register, Admin pages usan `api.*`
+- ✅ Admin 2FA: soporte headers dinámicos `X-2FA-Code` en wrappers
+- ✅ Build compilando exitosamente (errores de lint menores pendientes)
+
+**Páginas implementadas:**
+- ✅ Landing page (`/`)
+- ✅ Login (`/login`)
+- ✅ Register (`/register`)
+- ✅ Dashboard (`/dashboard`) — estadísticas, generador URL, decks recientes
+- ✅ Generate (`/generate`) — selector CEFR + contexto, barra progreso
+- ✅ Preview (`/preview/[deck_id]`) — CardFlip, download, register modal
+- ✅ My Decks (`/my-decks`) — lista con delete/download
+- ✅ Settings (`/settings`) — nombre, nivel, notificaciones (nombre solo localStorage)
+- ✅ Activate License (`/activate-license`)
+- ✅ Admin panels: `/admin`, `/admin/users`, `/admin/feedback`, `/admin/flagged-cards`, `/admin/licenses`
+
+**Endpoints frontend → backend:**
+| Endpoint | Método | Estado | Usado en |
+|----------|--------|--------|----------|
+| `/api/auth/register` | POST | ✅ | Register page, RegisterModal |
+| `/api/auth/login` | POST | ✅ | Login page |
+| `/api/auth/me` | GET | ✅ | Dashboard, Settings |
+| `/api/decks/generate` | POST | ✅ | Dashboard, Generate, Landing |
+| `/api/decks/user/my-decks` | GET | ✅ | MyDecks, Dashboard |
+| `/api/decks/{id}` | GET | ✅ | Preview |
+| `/api/decks/{id}/download` | GET | ✅ | Preview, MyDecks |
+| `/api/decks/{id}/claim` | POST | ✅ | RegisterModal (fixed) |
+| `/api/decks/{id}` | DELETE | ✅ | MyDecks |
+| `/api/decks/{id}/cards/add` | POST | ⚠️ No usado aún | — |
+| `/api/feedback` | POST | ❌ NO IMPLEMENTADO frontend | — |
+| `/api/licenses/activate` | POST | ✅ | ActivateLicense |
+| `/api/admin/metrics` | GET | ✅ | Admin page |
+| `/api/admin/users` | GET/PATCH | ✅ | Admin users |
+| `/api/admin/feedback` | GET | ✅ | Admin feedback |
+| `/api/admin/flagged-cards` | GET | ✅ | Admin flagged-cards |
+| `/api/licenses/admin` | GET/POST/DELETE | ✅ | Admin licenses |
 
 **Optimizaciones Backend — Fase 2 prep**
 - [ ] OpenRouter como provider IA gratuito (fallback chain)
@@ -91,7 +103,7 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 
 | Capa | Tecnología | Estado | Ubicación |
 |---|---|---|---|
-| **Frontend** | Next.js 14 + Tailwind CSS | ⏳ En desarrollo | Vercel |
+| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS | ⏳ En desarrollo (60%) | Vercel (pendiente) |
 | **Backend** | Python FastAPI async | ✅ Producción | Railway |
 | **Base datos** | MongoDB Atlas + Motor async | ✅ Conectado | Atlas |
 | **Caché** | Redis Cloud | ✅ Operativo | Redis Cloud |
@@ -101,7 +113,7 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 | **Mazos** | genanki → .apkg | ✅ Funcional | Backend |
 | **YouTube (MVP)** | Mock con schema real | ✅ Funcional | Backend |
 | **YouTube (Fase 2)** | youtube-transcript-api + yt-dlp + FFmpeg | ⏳ Pendiente | Backend |
-| **Auth** | NextAuth.js + JWT + bcrypt | ✅ Backend, ⏳ Frontend | Ambos |
+| **Auth** | JWT manual + bcrypt (sin NextAuth) | ✅ Backend + Frontend | Ambos |
 | **Pagos** | Stripe | ⏳ Fase 2 | — |
 | **Deploy Backend** | Railway | ✅ Activo | Railway |
 | **Deploy Frontend** | Vercel | ⏳ Pendiente | Vercel |
@@ -216,33 +228,62 @@ https://ankitube-learn-production.up.railway.app
 curl https://ankitube-learn-production.up.railway.app/health
 ```
 
-### Frontend Next.js (cuando esté listo)
+### Frontend Next.js (Abril 2026 — En desarrollo)
 ```bash
-# Próximo: scaffold en Vercel
+# 1. Clonar e instalar
 cd frontend
 npm install
+
+# 2. Variables de entorno (crear .env.local)
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000  # o URL production Railway
+
+# 3. Correr en desarrollo
 npm run dev
 # http://localhost:3000
+
+# 4. Build producción
+npm run build
+npm start
 ```
 
 ---
 
 ## 📡 Endpoints Principales — Probados ✅
 
+**Frontend API Client:** Todos los endpoints se acceden via `frontend/lib/api.ts` wrappers (centralizado, token automático, error handling uniforme).
+
 ```
-POST /api/auth/register         → crea usuario, retorna JWT
-POST /api/auth/login            → login + JWT
-GET  /api/auth/me               → perfil usuario actual
-POST /api/decks/generate        → genera 5 tarjetas mock con colombian_note
-GET  /api/decks/{id}            → obtiene deck
-GET  /api/decks/{id}/download   → descarga .apkg
-POST /api/decks/{id}/cards/add  → añade tarjeta manualmente
-GET  /api/decks/user/my-decks   → lista decks del usuario
+# Auth
+POST /api/auth/register         → crea usuario, retorna JWT + user
+POST /api/auth/login            → login + JWT + user
+GET  /api/auth/me               → perfil usuario actual (incluye custom_name cuando esté implementado)
+
+# Decks (dueño: user_id | anónimo: anonymous_session_id)
+POST /api/decks/generate        → genera mazo (5-15 tarjetas según rol)
+GET  /api/decks/{id}            → obtiene deck (verifica ownership o session_id)
+GET  /api/decks/{id}/download   → descarga .apkg (requiere auth si user_id)
+POST /api/decks/{id}/cards/add  → añade tarjeta manualmente (solo propietario)
+GET  /api/decks/user/my-decks   → lista decks del usuario autenticado
+POST /api/decks/{id}/claim      → transfiere mazo anónimo a usuario autenticado (usa token + opcional session_id)
+DELETE /api/decks/{id}          → elimina mazo (soft delete, solo propietario)
+
+# Feedback (5 momentos)
 POST /api/feedback              → envía feedback (anonimo o auth)
-POST /api/licenses/activate     → activa código tester
-GET  /api/admin/metrics         → métricas (superadmin + 2FA)
-GET  /api/admin/users           → lista usuarios (superadmin + 2FA)
-GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
+                               → tipos: post_generation, post_download, card_report, nps, general
+                               → rate-limit: 5/día por tipo
+
+# Licencias
+POST /api/licenses/activate     → activa código tester/licencia (asigna rol y expiración)
+
+# Superadmin (todos requieren 2FA en header X-2FA-Code)
+GET  /api/admin/metrics         → métricas globales (users, decks, feedback, licenses)
+GET  /api/admin/users           → lista usuarios paginado (page, limit)
+PATCH /api/admin/users/{id}/role→ actualiza rol de usuario
+GET  /api/admin/feedback        → lista feedbacks con filtros (moment, intent, page, limit)
+GET  /api/admin/flagged-cards   → tarjetas reportadas por usuarios
+GET  /api/licenses/admin        → lista todas las licencias
+POST /api/licenses/admin        → crea licencia (code, email, duration_days, internal_note)
+DELETE /api/licenses/admin/{code}→ revoca licencia (cambia status a revoked)
 ```
 
 ---
@@ -286,7 +327,31 @@ GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
   timestamp_start: Number,    // 123 (segundos)
   timestamp_end: Number,      // 127
   audio_filename: String,     // "card_1.mp3"
-  card_type: String           // "vocabulary" | "phrase" | "idiom"
+  card_type: String           // "vocabulary" | "phrase" | "idiom" | "grammar_pattern"
+}
+```
+
+### User (actualizado)
+```javascript
+{
+  _id: ObjectId,
+  email: String,              // unique
+  password: String,           // bcrypt hash
+  role: String,               // "user" | "premium" | "tester" | "superadmin"
+  custom_name: String,        // OPCIONAL: nombre personalizado (único, case-insensitive)
+  tester_expires_at: Date,
+  last_generation_date: Date,
+  generations_today: Number,
+  setup_wizard_completed: Boolean,
+  wizard_answers: {
+    level: String,            // "B1"
+    goal: String,
+    daily_minutes: Number,
+    content_type: String,
+    cards_per_day: Number
+  },
+  created_at: Date,
+  deleted_at: Date | null
 }
 ```
 
@@ -295,11 +360,11 @@ GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
 {
   user_id: ObjectId | null,   // null si anónimo
   deck_id: ObjectId | null,   // null si feedback general
-  moment: String,             // "post_generation" | "post_study" | "card_report" | "general" | "nps"
-  section: String,            // "generator" | "cards" | "study" | "pricing" | null
-  intent: String,             // "report" | "suggestion" | "praise"
-  quick_answer: String,       // opción elegida
-  text: String,               // feedback texto libre
+  moment: String,             // "post_generation" | "post_download" | "card_report" | "nps" | "general"
+  section: String | null,     // "generator" | "cards" | "study" | "pricing" | null
+  intent: String | null,      // "report" | "suggestion" | "praise"
+  quick_answer: String,       // opción elegida (ej. "5" para NPS)
+  text: String | null,        // feedback texto libre
   created_at: Date
 }
 ```
@@ -310,15 +375,101 @@ GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
   code: String,               // "ANKI-7K3P-2MNQ" — UNIQUE
   email: String,              // del tester
   duration_days: Number,      // 7, 15 o 30
-  status: String,             // "pending" → "active" → "expired"
+  status: String,             // "pending" → "active" → "expired" → "revoked"
   activated_by: ObjectId,     // usuario que lo activó
-  expires_at: Date
+  expires_at: Date,
+  internal_note: String | null,
+  created_at: Date
 }
 ```
 
 ---
 
-## 🎨 Diseño — Principios Inamovibles
+## 📋 Las 4 Fases del Producto
+
+### Fase 1 — MVP (60% completado — Abril 2026)
+
+**Completado:**
+- ✅ URL YouTube → .apkg con audio (backend + frontend)
+- ✅ CEFR selector + contexto General (frontend)
+- ✅ Vista previa CardFlip 3D
+- ✅ YouTube IFrame API embebido (preview)
+- ✅ Botón "Descargar" → .apkg funcional
+- ✅ Botón "Faltó alguna frase" → endpoint backend `POST /decks/{id}/cards/add` (no integrado frontend)
+- ✅ Auth JWT + Login/Register páginas
+- ✅ RegisterModal overlay — transferencia mazo anónimo con endpoint **CORREGIDO** `/claim`
+- ✅ Dashboard con estadísticas + generador
+- ✅ MyDecks con lista, delete, download
+- ✅ Settings básico (nombre, nivel, notificaciones) — nombre solo localStorage
+- ✅ Superadmin panels completos (metrics, users, feedback, flagged, licenses) + 2FA
+- ✅ API client centralizado (`frontend/lib/api.ts`) con 19 wrappers
+- ✅ Token JWT automático en todas las peticiones
+- ✅ Manejo global 401/403 con redirect a login
+
+**Pendiente Fase 1:**
+- ⏳ Página `/study/[deckId]` — motor SRS SM-2, fill-in-the-blank, celebración
+- ⏳ Sistema feedback frontend (5 momentos) — backend ✅, frontend ❌
+- ⏳ useUserStore (Zustand) — estado global usuario + `custom_name` persistente
+- ⏳ `custom_name` en backend (modelo User + endpoint PATCH /profile) + Settings UI
+- ⏳ Botón flotante feedback en todas las páginas
+
+### Fase 2 — Producto Avanzado (Meses 4-8)
+- YouTube real (yt-dlp + youtube-transcript-api)
+- Stripe + pagos recurrentes
+- Setup Wizard (5 preguntas onboarding)
+- Curación guiada de mazos
+- Recomendador de videos personalizado
+- Plantillas pro (templates de tarjetas)
+- Detección CEFR automática (AI)
+- Celery + Redis para tareas asíncronas
+- Caché de decks frecuentes
+
+### Fase 3 — Motor de Skills (Meses 9-14)
+- Módulos: Listening, Reading, Writing, Speaking
+- Plan de estudio 8 semanas personalizado
+- Firecrawl para artículos (blogs, noticias)
+- Reproductor integrado (sin salir de AnkiTube)
+- Sistema de reportes de contenido abusivo
+
+### Fase 4 — Mobile & Scale (Mes 15+)
+- App React Native (iOS/Android)
+- Reproductor Anki integrado (studyMode nativo)
+- Expansión Latinoamérica (México, Perú, Ecuador)
+
+---
+
+## 🎯 Próximos Pasos — Prioridad Ordenada (Abril 2026)
+
+### 🔴 Urgente (Esta semana)
+1. **Integrar `POST /api/feedback`** — backend listo con rate-limit, frontend ausente
+2. **Implementar `custom_name`** — User model + endpoint PATCH + Settings UI + store Zustand
+3. **Crear página `/study/[deckId]`** — motor SRS SM-2 (criterios SM-2 estándar)
+4. **Limpiar lint** — unused imports, `any` types, usar `next/image`
+
+**Nota crítica:** Antes de `custom_name`, asegurar que `/api/feedback` se use (post_generation, post_download, card_report).
+
+### 🟡 Alta (Próximas 2 semanas)
+5. **Botón "Faltó frase"** en Preview → POST `/decks/{id}/cards/add` (UI + handling)
+6. **Feedback 5 momentos** en:
+   - Dashboard → después de generar (post_generation)
+   - Preview → después de descargar (post_download)
+   - CardFlip → botón "Reportar tarjeta" (card_report)
+   - Settings → ocasional NPS (nps)
+7. **useUserStore (Zustand)** — centralizar custom_name, level, role, sincronización con localStorage + API
+8. **Paginación admin** — usuarios, feedback (soportado backend, falta UI completa)
+
+### 🟢 Media (Mayo 2026)
+9. **YouTube real** — reemplazar mock por `youtube-transcript-api` + yt-dlp
+10. **Stripe integración** — planes Fluente ($15k/mes) y Nativo ($120k/año)
+11. **Setup Wizard onboarding** — 5 preguntas (nivel, objetivo, minutos/día, contenido, tarjetas/día)
+12. **Caché Redis** — decks frecuentes, rate limiting por usuario/IP
+
+### 🚀 Deploy (Cuanto antes)
+13. **Vercel frontend** — conectar GitHub repo + environment variables
+14. **CORS verificado** — backend Railway ↔ frontend Vercel (allow_origins)
+15. **E2E testing** — flujo completo:生成 → preview → download → import Anki ( smoke test )
+
+---
 
 | Principio | Descripción |
 |---|---|
