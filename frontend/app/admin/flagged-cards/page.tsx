@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Flag, Eye, EyeOff } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface FlaggedCard {
   deck_id: string
@@ -42,34 +43,17 @@ export default function AdminFlaggedCardsPage() {
 
   async function fetchFlaggedCards() {
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/admin/flagged-cards`, { headers })
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          setShowTwoFactor(true)
-          setError("Se requiere código 2FA")
-          return
-        }
-        throw new Error("Error al cargar tarjetas marcadas")
-      }
-
-      const data = await res.json()
-      setFlaggedCards(data.flagged_cards)
+      const data = await api.getFlaggedCards(twoFactorCode || undefined)
+      setFlaggedCards((data as any).flagged_cards)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Error al cargar tarjetas marcadas"
+    } catch (err: any) {
+      if (err.status === 401) {
+        setShowTwoFactor(true)
+        setError("Se requiere código 2FA")
+        return
+      }
+      const errorMessage = err.message || "Error al cargar tarjetas marcadas"
       setError(errorMessage)
     } finally {
       setLoading(false)

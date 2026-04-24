@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface Feedback {
   id: string
@@ -58,39 +59,18 @@ export default function AdminFeedbackPage() {
 
   async function fetchFeedback() {
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      let url = `${apiUrl}/api/admin/feedback?page=${page}&limit=${limit}`
-      if (filterMoment) url += `&moment=${filterMoment}`
-      if (filterIntent) url += `&intent=${filterIntent}`
-
-      const res = await fetch(url, { headers })
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          setShowTwoFactor(true)
-          setError("Se requiere código 2FA")
-          return
-        }
-        throw new Error("Error al cargar feedback")
-      }
-
-      const data: FeedbackResponse = await res.json()
-      setFeedback(data.feedback)
-      setTotal(data.total)
+      const data = await api.getAdminFeedback(page, limit, filterMoment || undefined, filterIntent || undefined, twoFactorCode || undefined)
+      setFeedback((data as any).feedback)
+      setTotal((data as any).total)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Error al cargar feedback"
+    } catch (err: any) {
+      if (err.status === 401) {
+        setShowTwoFactor(true)
+        setError("Se requiere código 2FA")
+        return
+      }
+      const errorMessage = err.message || "Error al cargar feedback"
       setError(errorMessage)
     } finally {
       setLoading(false)

@@ -15,8 +15,8 @@ import {
   Check,
 } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
+import { api } from "@/lib/api"
 
-// Data
 const CEFR_LEVELS = [
   { value: "A1", label: "A1 — Principiante", desc: "Saludos, números, colores" },
   { value: "A2", label: "A2 — Básico", desc: "Situaciones simples del día a día" },
@@ -26,23 +26,18 @@ const CEFR_LEVELS = [
   { value: "C2", label: "C2 — Maestría", desc: "Dominio casi nativo" },
 ]
 
-const CONTEXTS = [
+const contexts = [
   { value: "general", label: "General", icon: GraduationCap, desc: "Mezcla equilibrada de todo", locked: false },
   { value: "work", label: "Trabajo", icon: Briefcase, desc: "Llamadas, emails, reuniones", locked: true },
   { value: "travel", label: "Viajes", icon: Plane, desc: "Aeropuertos, hoteles, restaurantes", locked: true },
   { value: "gaming", label: "Gaming", icon: Gamepad2, desc: "Vocabulario de videojuegos", locked: true },
 ]
 
-const PROGRESS_STEPS = [
+const progressSteps = [
   { id: 1, label: "Extrayendo" },
   { id: 2, label: "Analizando" },
   { id: 3, label: "Generando" },
 ]
-
-interface DeckResponse {
-  deck_id: string
-  message: string
-}
 
 export default function GeneratePage() {
   const router = useRouter()
@@ -87,25 +82,13 @@ export default function GeneratePage() {
     }, 1800)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          youtube_url: url,
-          level,
-          context,
-        }),
+      const data = await api.generateDeck({
+        youtube_url: url,
+        level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
+        context,
       })
 
       clearInterval(stepTimer)
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "No pudimos generar el mazo. Intenta de nuevo.")
-      }
-
-      const data: DeckResponse = await res.json()
       router.push(`/preview/${data.deck_id}`)
     } catch (err: unknown) {
       clearInterval(stepTimer)
@@ -226,7 +209,7 @@ export default function GeneratePage() {
                 Contexto de aprendizaje
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {CONTEXTS.map((ctx) => {
+                {contexts.map((ctx) => {
                   const Icon = ctx.icon
                   const isSelected = context === ctx.value
                   return (
@@ -279,14 +262,14 @@ export default function GeneratePage() {
                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
                   <span className="text-sm font-semibold text-on-surface">
                     {currentStep > 0 && currentStep <= 3
-                      ? PROGRESS_STEPS[currentStep - 1]?.label
+                      ? progressSteps[currentStep - 1]?.label
                       : "Procesando..."}
                   </span>
                 </div>
 
                 {/* Progress dots */}
                 <div className="flex items-center gap-2">
-                  {PROGRESS_STEPS.map((step) => (
+                  {progressSteps.map((step) => (
                     <div key={step.id} className="flex items-center gap-2">
                       <div
                         className={`w-3 h-3 rounded-full transition-all duration-300 ${

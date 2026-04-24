@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
+import { api } from "@/lib/api"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -35,19 +36,7 @@ export default function RegisterPage() {
     setError("")
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "Error al registrarse")
-      }
-
-      const data = await res.json()
+      const data = await api.register(email, password)
       localStorage.setItem("token", data.access_token)
       localStorage.setItem("user", JSON.stringify(data.user))
 

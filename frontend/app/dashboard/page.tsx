@@ -239,52 +239,39 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadUserData() {
       try {
-        // Primero cargar desde localStorage
-        const storedUser = localStorage.getItem("user")
         const token = localStorage.getItem("token")
-        
         if (!token) {
           router.push("/login")
           return
         }
 
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          setUser(parsedUser)
-          setStats({
-            cardsCreated: parsedUser.total_cards || 0,
-            studyStreak: 0, // TODO: Implementar racha de estudio
-            decksGenerated: parsedUser.total_decks || 0
-          })
-        }
-
-        // Luego actualizar desde el backend
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        const res = await fetch(`${apiUrl}/api/auth/me`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        })
-
-        if (res.ok) {
-          const userData = await res.json()
+        // Cargar usuario desde backend
+        try {
+          const userData = await api.getCurrentUser()
           setUser(userData)
-          localStorage.setItem("user", JSON.stringify(userData))
           setStats({
             cardsCreated: userData.total_cards || 0,
             studyStreak: 0, // TODO: Implementar racha de estudio
             decksGenerated: userData.total_decks || 0
           })
+          localStorage.setItem("user", JSON.stringify(userData))
+        } catch (error: any) {
+          if (error.status === 401) {
+            localStorage.removeItem("token")
+            localStorage.removeItem("user")
+            router.push("/login")
+            return
+          }
+          console.error("Error loading user:", error)
         }
 
-        // Cargar decks del usuario (solo si hay token)
+        // Cargar decks del usuario
         if (token) {
           try {
             const decksData = await api.getMyDecks()
             setDecks(decksData.decks)
           } catch (deckError) {
             console.error("Error loading decks:", deckError)
-            // No redirigir, solo mostrar error en consola
           }
         }
       } catch (error) {
@@ -327,30 +314,13 @@ export default function DashboardPage() {
     }, 1800)
 
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const res = await fetch(`${apiUrl}/api/decks/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          youtube_url: urlInput,
-          level: user?.level || "B1",
-          context: "general",
-        }),
+      const data = await api.generateDeck({
+        youtube_url: urlInput,
+        level: (user?.level || "B1") as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
+        context: "general",
       })
 
       clearInterval(stepTimer)
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "No pudimos generar el mazo")
-      }
-
-      const data = await res.json()
       router.push(`/preview/${data.deck_id}`)
     } catch (err: unknown) {
       clearInterval(stepTimer)

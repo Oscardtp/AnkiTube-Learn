@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function ActivateLicensePage() {
   const router = useRouter()
@@ -31,22 +32,8 @@ export default function ActivateLicensePage() {
         return
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/licenses/activate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ code }),
-      })
+      const data = await api.activateLicense(code)
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "Error al activar la licencia")
-      }
-
-      const data = await res.json()
       setSuccess(true)
       setExpiresAt(data.expires_at)
 

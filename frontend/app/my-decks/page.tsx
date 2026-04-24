@@ -4,6 +4,19 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Trash2, Download, Eye } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
+import { api } from "@/lib/api"
+
+interface Deck {
+  deck_id: string
+  video_title: string
+  video_thumbnail: string
+  video_id: string
+  level: string
+  context: string
+  total_cards: number
+  model_used: string
+  created_at: string
+}
 
 interface Deck {
   deck_id: string
@@ -30,30 +43,17 @@ export default function MyDecksPage() {
 
   async function fetchDecks() {
     try {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        router.push("/login")
-        return
-      }
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/user/my-decks`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!res.ok) {
-        if (res.status === 401) {
+      try {
+        const data = await api.getMyDecks()
+        setDecks(data.decks)
+      } catch (error: any) {
+        if (error.status === 401) {
           localStorage.removeItem("token")
           router.push("/login")
           return
         }
-        throw new Error("Error al cargar los mazos")
+        throw error
       }
-
-      const data = await res.json()
-      setDecks(data.decks)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al cargar los mazos"
       setError(errorMessage)
@@ -69,19 +69,7 @@ export default function MyDecksPage() {
 
     setDeletingId(deckId)
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/${deckId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al eliminar el mazo")
-      }
-
+      await api.deleteDeck(deckId)
       setDecks(decks.filter((d) => d.deck_id !== deckId))
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al eliminar el mazo"
@@ -93,19 +81,7 @@ export default function MyDecksPage() {
 
   async function handleDownload(deckId: string, videoTitle: string) {
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/${deckId}/download`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al descargar el archivo")
-      }
-
-      const blob = await res.blob()
+      const blob = await api.downloadDeck(deckId)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

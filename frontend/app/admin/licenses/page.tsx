@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, AlertCircle, Key, Plus, Trash2, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, AlertCircle, Key, Plus, Trash2 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface License {
   code: string
@@ -50,34 +51,17 @@ export default function AdminLicensesPage() {
 
   async function fetchLicenses() {
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/licenses/admin`, { headers })
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          setShowTwoFactor(true)
-          setError("Se requiere código 2FA")
-          return
-        }
-        throw new Error("Error al cargar licencias")
-      }
-
-      const data = await res.json()
-      setLicenses(data)
+      const data = await api.getAdminLicenses(twoFactorCode || undefined)
+      setLicenses(data as any)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Error al cargar licencias"
+    } catch (err: any) {
+      if (err.status === 401) {
+        setShowTwoFactor(true)
+        setError("Se requiere código 2FA")
+        return
+      }
+      const errorMessage = err.message || "Error al cargar licencias"
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -89,34 +73,15 @@ export default function AdminLicensesPage() {
     setCreating(true)
 
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/licenses/admin`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+      const newLicense = await api.createAdminLicense(
+        {
           email: email || null,
           duration_days: durationDays,
           internal_note: internalNote || null,
-        }),
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al crear licencia")
-      }
-
-      const newLicense = await res.json()
-      setLicenses([newLicense, ...licenses])
+        },
+        twoFactorCode || undefined
+      )
+      setLicenses([newLicense as any, ...licenses])
       setShowCreateForm(false)
       setEmail("")
       setDurationDays(30)
@@ -136,27 +101,8 @@ export default function AdminLicensesPage() {
 
     setRevoking(code)
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/licenses/admin/${code}`, {
-        method: "DELETE",
-        headers,
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al revocar licencia")
-      }
-
-      setLicenses(licenses.map((l) => (l.code === code ? { ...l, status: "revoked" } : l)))
+      await api.deleteAdminLicense(code, twoFactorCode || undefined)
+      setLicenses(licenses.filter((l) => l.code !== code))
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al revocar licencia"
       alert(errorMessage)

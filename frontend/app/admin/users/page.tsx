@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, AlertCircle, Users, ChevronLeft, ChevronRight } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface User {
   id: string
@@ -53,35 +54,18 @@ export default function AdminUsersPage() {
 
   async function fetchUsers() {
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/admin/users?page=${page}&limit=${limit}`, { headers })
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          setShowTwoFactor(true)
-          setError("Se requiere código 2FA")
-          return
-        }
-        throw new Error("Error al cargar usuarios")
-      }
-
-      const data: UsersResponse = await res.json()
-      setUsers(data.users)
-      setTotal(data.total)
+      const data = await api.getAdminUsers(page, limit)
+      setUsers((data as any).users)
+      setTotal((data as any).total)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Error al cargar usuarios"
+    } catch (err: any) {
+      if (err.status === 401) {
+        setShowTwoFactor(true)
+        setError("Se requiere código 2FA")
+        return
+      }
+      const errorMessage = err.message || "Error al cargar usuarios"
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -91,28 +75,7 @@ export default function AdminUsersPage() {
   async function handleUpdateRole(userId: string, newRole: string) {
     setUpdatingRole(userId)
     try {
-      const token = localStorage.getItem("token")
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      }
-
-      if (twoFactorCode) {
-        headers["X-2FA-Code"] = twoFactorCode
-      }
-
-      const res = await fetch(`${apiUrl}/api/admin/users/${userId}/role`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ role: newRole }),
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al actualizar rol")
-      }
-
+      await api.updateAdminUserRole(userId, newRole, twoFactorCode || undefined)
       setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)))
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al actualizar rol"
