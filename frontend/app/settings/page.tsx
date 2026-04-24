@@ -48,30 +48,19 @@ export default function SettingsPage() {
         return
       }
 
-      const userData = localStorage.getItem("user")
-      if (userData) {
-        const parsed = JSON.parse(userData)
-        setUser(parsed)
-        if (parsed.level) setSelectedLevel(parsed.level)
-        if (parsed.name) setName(parsed.name)
-      }
-
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        const res = await fetch(`${apiUrl}/api/auth/me`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        })
-
-        if (res.ok) {
-          const userData = await res.json()
-          setUser(userData)
-          localStorage.setItem("user", JSON.stringify(userData))
-          if (userData.level) setSelectedLevel(userData.level)
-          if (userData.name) setName(userData.name)
+        const userData = await api.getCurrentUser()
+        setUser(userData)
+        localStorage.setItem("user", JSON.stringify(userData))
+        if (userData.level) setSelectedLevel(userData.level)
+        if (userData.custom_name) setName(userData.custom_name)
+      } catch (error: any) {
+        if (error.status === 401) {
+          localStorage.removeItem("token")
+          localStorage.removeItem("user")
+          router.push("/login")
+          return
         }
-      } catch (error) {
         console.error("Error loading user data:", error)
       } finally {
         setLoading(false)

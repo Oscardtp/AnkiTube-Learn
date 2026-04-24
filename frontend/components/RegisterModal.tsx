@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -35,35 +36,16 @@ export default function RegisterModal({ isOpen, onClose, deckId, onSuccess }: Re
     setLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
-      // Register user
-      const res = await fetch(`${apiUrl}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "No pudimos crear tu cuenta. Intenta de nuevo.")
-      }
-
-      const data = await res.json()
+      const data = await api.register(email, password)
 
       // Store token
       localStorage.setItem("token", data.access_token)
 
-      // Transfer anonymous deck to new user
+      // Transfer anonymous deck to new user (best-effort)
       if (deckId) {
         try {
-          await fetch(`${apiUrl}/api/decks/${deckId}/transfer`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${data.access_token}`,
-            },
-          })
+          const anonSessionId = localStorage.getItem("anon_session_id")
+          await api.claimDeck(deckId, anonSessionId || undefined)
         } catch {
           // Transfer is best-effort, don't block on failure
           console.warn("No se pudo transferir el mazo automáticamente")

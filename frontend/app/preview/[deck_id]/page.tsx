@@ -16,6 +16,32 @@ import {
 import MinimalNavbar from "@/components/MinimalNavbar"
 import CardFlip from "@/components/CardFlip"
 import RegisterModal from "@/components/RegisterModal"
+import { api } from "@/lib/api"
+
+interface Card {
+  front: string
+  back: string
+  keyword: string
+  grammar_note: string
+  context_note: string
+  colombian_note: string
+  timestamp_start: number
+  timestamp_end: number
+  audio_filename?: string
+  card_type: string
+}
+
+interface DeckData {
+  deck_id: string
+  video_id: string
+  video_title: string
+  video_thumbnail: string
+  level: string
+  context: string
+  cards: Card[]
+  model_used: string
+  total_cards: number
+}
 
 interface Card {
   front: string
@@ -62,15 +88,7 @@ export default function PreviewPage() {
   useEffect(() => {
     async function fetchDeck() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        const res = await fetch(`${apiUrl}/api/decks/${deckId}`)
-
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.detail || "No pudimos cargar el mazo")
-        }
-
-        const data = await res.json()
+        const data = await api.getDeck(deckId)
         setDeck(data)
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "Algo salió mal"
@@ -96,17 +114,7 @@ export default function PreviewPage() {
 
     setDownloading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const token = localStorage.getItem("token")
-      const res = await fetch(`${apiUrl}/api/decks/${deckId}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-
-      if (!res.ok) {
-        throw new Error("Error al descargar el archivo")
-      }
-
-      const blob = await res.blob()
+      const blob = await api.downloadDeck(deckId)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

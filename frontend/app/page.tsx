@@ -23,6 +23,7 @@ import {
   Volume2,
 } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
+import { api } from "@/lib/api"
 
 // Data
 const CEFR_LEVELS = [
@@ -151,25 +152,13 @@ export default function LandingPage() {
     }, 1800)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const res = await fetch(`${apiUrl}/api/decks/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          youtube_url: url,
-          level,
-          context,
-        }),
+      const data = await api.generateDeck({
+        youtube_url: url,
+        level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
+        context,
       })
 
       clearInterval(stepTimer)
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "No pudimos generar el mazo. Intenta de nuevo.")
-      }
-
-      const data = await res.json()
       router.push(`/preview/${data.deck_id}`)
     } catch (err: any) {
       clearInterval(stepTimer)
