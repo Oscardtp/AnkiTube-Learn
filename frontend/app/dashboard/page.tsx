@@ -5,6 +5,32 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import MinimalNavbar from "@/components/MinimalNavbar"
 import { api } from "@/lib/api"
+import {
+  ChevronDown,
+  Briefcase,
+  Plane,
+  Gamepad2,
+  GraduationCap,
+  Lock,
+} from "lucide-react"
+
+// CEFR Levels
+const CEFR_LEVELS = [
+  { value: "A1", label: "A1 — Principiante", desc: "Saludos, números, colores" },
+  { value: "A2", label: "A2 — Básico", desc: "Situaciones simples del día a día" },
+  { value: "B1", label: "B1 — Intermedio", desc: "Entiendo series con subtítulos" },
+  { value: "B2", label: "B2 — Intermedio-alto", desc: "Películas sin subtítulos" },
+  { value: "C1", label: "C1 — Avanzado", desc: "Uso flexible y profesional" },
+  { value: "C2", label: "C2 — Maestría", desc: "Dominio casi nativo" },
+]
+
+// Context options
+const CONTEXTS = [
+  { value: "general", label: "General", icon: GraduationCap, desc: "Mezcla equilibrada" },
+  { value: "work", label: "Trabajo", icon: Briefcase, desc: "Oficina y llamadas", locked: true },
+  { value: "travel", label: "Viajes", icon: Plane, desc: "Aeropuertos y hoteles", locked: true },
+  { value: "gaming", label: "Gaming", icon: Gamepad2, desc: "Videojuegos en inglés", locked: true },
+]
 
 // Types
 interface User {
@@ -119,6 +145,14 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
             )}
           </Link>
         ))}
+        {/* Logout Button */}
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left text-on-surface-variant hover:text-error hover:bg-surface-container"
+        >
+          <MaterialIcon name="logout" className="text-xl" />
+          <span>Cerrar sesión</span>
+        </button>
       </div>
     </aside>
   )
@@ -224,6 +258,10 @@ function MonthlyUsageIndicator({ totalCards }: { totalCards: number }) {
 export default function DashboardPage() {
   const router = useRouter()
   const [urlInput, setUrlInput] = useState("")
+  const [level, setLevel] = useState("B1")
+  const [context, setContext] = useState("general")
+  const [showLevelSelector, setShowLevelSelector] = useState(false)
+  const [showContextSelector, setShowContextSelector] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [stats, setStats] = useState<UserStats>({
     cardsCreated: 0,
@@ -255,14 +293,15 @@ export default function DashboardPage() {
             decksGenerated: userData.total_decks || 0
           })
           localStorage.setItem("user", JSON.stringify(userData))
-        } catch (error: any) {
+        } catch (err: unknown) {
+          const error = err as { status?: number }
           if (error.status === 401) {
             localStorage.removeItem("token")
             localStorage.removeItem("user")
             router.push("/login")
             return
           }
-          console.error("Error loading user:", error)
+          console.error("Error loading user:", err)
         }
 
         // Cargar decks del usuario
@@ -316,8 +355,8 @@ export default function DashboardPage() {
     try {
       const data = await api.generateDeck({
         youtube_url: urlInput,
-        level: (user?.level || "B1") as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
-        context: "general",
+        level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
+        context,
       })
 
       clearInterval(stepTimer)
@@ -455,39 +494,113 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <MaterialIcon name="link" className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 text-xl" />
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => {
-                      setUrlInput(e.target.value)
-                      setGenerationError("")
-                    }}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-none focus:ring-4 focus:ring-primary-container/50 text-on-surface font-medium placeholder:text-slate-400 shadow-lg"
-                    onKeyDown={(e) => e.key === "Enter" && !generating && handleGenerate()}
-                    disabled={generating}
-                  />
+              {/* URL Input */}
+              <div className="mb-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <MaterialIcon name="link" className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 text-xl" />
+                    <input
+                      type="text"
+                      value={urlInput}
+                      onChange={(e) => {
+                        setUrlInput(e.target.value)
+                        setGenerationError("")
+                      }}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-none focus:ring-4 focus:ring-primary-container/50 text-on-surface font-medium placeholder:text-slate-400 shadow-lg"
+                      onKeyDown={(e) => e.key === "Enter" && !generating && handleGenerate()}
+                      disabled={generating}
+                    />
+                  </div>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={generating || !urlInput.trim()}
+                    className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {generating ? (
+                      <>
+                        <span>Generando...</span>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Generar</span>
+                        <MaterialIcon name="bolt" filled className="text-xl" />
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  onClick={handleGenerate}
-                  disabled={generating || !urlInput.trim()}
-                  className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {generating ? (
-                    <>
-                      <span>Generando...</span>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    </>
-                  ) : (
-                    <>
-                      <span>Generar</span>
-                      <MaterialIcon name="bolt" filled className="text-xl" />
-                    </>
+              </div>
+
+              {/* Level and Context Selectors */}
+              <div className="flex flex-wrap gap-3 mt-4">
+                {/* Level Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowLevelSelector(!showLevelSelector)}
+                    disabled={generating}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-full text-sm font-medium transition-all backdrop-blur-sm border border-white/20"
+                  >
+                    <span>Nivel {level}</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showLevelSelector && (
+                    <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[220px]">
+                      {CEFR_LEVELS.map((l) => (
+                        <button
+                          key={l.value}
+                          onClick={() => {
+                            setLevel(l.value)
+                            setShowLevelSelector(false)
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-container transition-colors ${
+                            level === l.value ? "text-primary font-bold bg-primary/5" : "text-on-surface"
+                          }`}
+                        >
+                          <span className="font-semibold">{l.value}</span> — {l.desc}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
+
+                {/* Context Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowContextSelector(!showContextSelector)}
+                    disabled={generating}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-full text-sm font-medium transition-all backdrop-blur-sm border border-white/20"
+                  >
+                    <span>{CONTEXTS.find((c) => c.value === context)?.label || "General"}</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showContextSelector && (
+                    <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px]">
+                      {CONTEXTS.map((ctx) => {
+                        const Icon = ctx.icon
+                        return (
+                          <button
+                            key={ctx.value}
+                            onClick={() => {
+                              if (!ctx.locked) {
+                                setContext(ctx.value)
+                                setShowContextSelector(false)
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-container transition-colors flex items-center gap-3 ${
+                              context === ctx.value ? "text-primary font-bold bg-primary/5" : ctx.locked ? "text-outline cursor-not-allowed" : "text-on-surface"
+                            }`}
+                            disabled={!!ctx.locked}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{ctx.label}</span>
+                            {ctx.locked && <Lock className="w-3 h-3 ml-auto" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {generationError && (

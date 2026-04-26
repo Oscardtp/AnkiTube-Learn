@@ -14,13 +14,6 @@ interface User {
   created_at: string
 }
 
-interface UsersResponse {
-  users: User[]
-  total: number
-  page: number
-  limit: number
-}
-
 export default function AdminUsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
@@ -54,18 +47,19 @@ export default function AdminUsersPage() {
 
   async function fetchUsers() {
     try {
-      const data = await api.getAdminUsers(page, limit)
-      setUsers((data as any).users)
-      setTotal((data as any).total)
+      const data = await api.getAdminUsers(page, limit) as { users: User[]; total: number }
+      setUsers(data.users)
+      setTotal(data.total)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: any) {
-      if (err.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
         setShowTwoFactor(true)
         setError("Se requiere código 2FA")
         return
       }
-      const errorMessage = err.message || "Error al cargar usuarios"
+      const errorMessage = error.message || "Error al cargar usuarios"
       setError(errorMessage)
     } finally {
       setLoading(false)

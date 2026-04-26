@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, AlertCircle, Flag, Eye, EyeOff } from "lucide-react"
+import { Loader2, AlertCircle, Flag } from "lucide-react"
 import { api } from "@/lib/api"
 
 interface FlaggedCard {
@@ -43,17 +43,18 @@ export default function AdminFlaggedCardsPage() {
 
   async function fetchFlaggedCards() {
     try {
-      const data = await api.getFlaggedCards(twoFactorCode || undefined)
-      setFlaggedCards((data as any).flagged_cards)
+      const data = await api.getFlaggedCards(twoFactorCode || undefined) as { flagged_cards: FlaggedCard[] }
+      setFlaggedCards(data.flagged_cards)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: any) {
-      if (err.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
         setShowTwoFactor(true)
         setError("Se requiere código 2FA")
         return
       }
-      const errorMessage = err.message || "Error al cargar tarjetas marcadas"
+      const errorMessage = error.message || "Error al cargar tarjetas marcadas"
       setError(errorMessage)
     } finally {
       setLoading(false)

@@ -45,17 +45,18 @@ export default function AdminPage() {
 
   async function fetchMetrics() {
     try {
-      const data = await api.getAdminMetrics(twoFactorCode || undefined)
-      setMetrics(data as any)
+      const data = await api.getAdminMetrics(twoFactorCode || undefined) as Metrics
+      setMetrics(data)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: any) {
-      if (err.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
         setShowTwoFactor(true)
         setError("Se requiere código 2FA")
         return
       }
-      const errorMessage = err.message || "Error al cargar métricas"
+      const errorMessage = error.message || "Error al cargar métricas"
       setError(errorMessage)
     } finally {
       setLoading(false)
