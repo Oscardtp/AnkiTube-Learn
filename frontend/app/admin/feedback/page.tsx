@@ -18,13 +18,6 @@ interface Feedback {
   created_at: string
 }
 
-interface FeedbackResponse {
-  feedback: Feedback[]
-  total: number
-  page: number
-  limit: number
-}
-
 export default function AdminFeedbackPage() {
   const router = useRouter()
   const [feedback, setFeedback] = useState<Feedback[]>([])
@@ -59,18 +52,19 @@ export default function AdminFeedbackPage() {
 
   async function fetchFeedback() {
     try {
-      const data = await api.getAdminFeedback(page, limit, filterMoment || undefined, filterIntent || undefined, twoFactorCode || undefined)
-      setFeedback((data as any).feedback)
-      setTotal((data as any).total)
+      const data = await api.getAdminFeedback(page, limit, filterMoment || undefined, filterIntent || undefined, twoFactorCode || undefined) as { feedback: Feedback[]; total: number }
+      setFeedback(data.feedback)
+      setTotal(data.total)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: any) {
-      if (err.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
         setShowTwoFactor(true)
         setError("Se requiere código 2FA")
         return
       }
-      const errorMessage = err.message || "Error al cargar feedback"
+      const errorMessage = error.message || "Error al cargar feedback"
       setError(errorMessage)
     } finally {
       setLoading(false)

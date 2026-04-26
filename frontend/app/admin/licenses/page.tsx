@@ -51,17 +51,18 @@ export default function AdminLicensesPage() {
 
   async function fetchLicenses() {
     try {
-      const data = await api.getAdminLicenses(twoFactorCode || undefined)
-      setLicenses(data as any)
+      const data = await api.getAdminLicenses(twoFactorCode || undefined) as License[]
+      setLicenses(data)
       setShowTwoFactor(false)
       setError("")
-    } catch (err: any) {
-      if (err.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
         setShowTwoFactor(true)
         setError("Se requiere código 2FA")
         return
       }
-      const errorMessage = err.message || "Error al cargar licencias"
+      const errorMessage = error.message || "Error al cargar licencias"
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -81,7 +82,7 @@ export default function AdminLicensesPage() {
         },
         twoFactorCode || undefined
       )
-      setLicenses([newLicense as any, ...licenses])
+      setLicenses([newLicense as License, ...licenses])
       setShowCreateForm(false)
       setEmail("")
       setDurationDays(30)

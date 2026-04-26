@@ -65,37 +65,6 @@ const FEATURES = [
   "Explicaciones sencillas, como te las diría un parcero.",
 ]
 
-const PLANS = [
-  {
-    name: "Explorador",
-    price: "$0",
-    period: "/ siempre",
-    features: ["1 mazo/día", "IA Estándar", "Exportación Anki"],
-    cta: "Elegir Gratis",
-    popular: false,
-    dark: false,
-  },
-  {
-    name: "Fluente",
-    price: "$15.000",
-    period: "/ mes",
-    features: ["Mazos ilimitados", "IA Contextual Pro", "Audio HD natural", "Sin anuncios"],
-    cta: "¡Me vuelvo fluente!",
-    popular: true,
-    dark: true,
-  },
-  {
-    name: "Nativo",
-    price: "$120.000",
-    period: "/ año",
-    features: ["Todo en Fluente", "Soporte vía WhatsApp", "Comunidad privada", "Acceso anticipado beta"],
-    cta: "Plan Pro",
-    popular: false,
-    dark: true,
-    pro: true,
-  },
-]
-
 const FAQS = [
   {
     question: "¿Necesito tener Anki instalado?",
@@ -160,9 +129,10 @@ export default function LandingPage() {
 
       clearInterval(stepTimer)
       router.push(`/preview/${data.deck_id}`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearInterval(stepTimer)
-      setError(err.message || "Algo salió mal. Intenta de nuevo.")
+      const error = err as { message?: string }
+      setError(error.message || "Algo salió mal. Intenta de nuevo.")
       setLoading(false)
       setCurrentStep(0)
     }
@@ -230,12 +200,12 @@ export default function LandingPage() {
               ))}
             </div>
             <span className="text-sm font-medium text-on-surface-variant italic">
-              "Por fin algo que funciona para el call center — Juan D., Medellín"
+              &quot;Por fin algo que funciona para el call center — Juan D., Medellín&quot;
             </span>
           </div>
           <div className="hidden md:flex items-center gap-2">
             <span className="text-sm font-medium text-on-surface-variant italic">
-              "Anki era un lío, ahora es automático — Elena V., Bogotá"
+              &quot;Anki era un lío, ahora es automático — Elena V., Bogotá&quot;
             </span>
           </div>
         </div>
@@ -493,7 +463,7 @@ export default function LandingPage() {
                       Front (Inglés)
                     </span>
                     <div className="flex justify-between items-center">
-                      <h4 className="text-2xl font-bold text-primary">"I've been meaning to tell you"</h4>
+                      <h4 className="text-2xl font-bold text-primary">&quot;I&apos;ve been meaning to tell you&quot;</h4>
                       <button className="w-10 h-10 bg-primary-container/30 rounded-full flex items-center justify-center text-primary hover:bg-primary-container/50 transition-colors"
                       >
                         <Volume2 className="w-5 h-5" />

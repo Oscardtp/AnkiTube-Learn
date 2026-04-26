@@ -18,18 +18,6 @@ interface Deck {
   created_at: string
 }
 
-interface Deck {
-  deck_id: string
-  video_title: string
-  video_thumbnail: string
-  video_id: string
-  level: string
-  context: string
-  total_cards: number
-  model_used: string
-  created_at: string
-}
-
 export default function MyDecksPage() {
   const router = useRouter()
   const [decks, setDecks] = useState<Deck[]>([])
@@ -46,13 +34,14 @@ export default function MyDecksPage() {
       try {
         const data = await api.getMyDecks()
         setDecks(data.decks)
-      } catch (error: any) {
+      } catch (err: unknown) {
+        const error = err as { status?: number }
         if (error.status === 401) {
           localStorage.removeItem("token")
           router.push("/login")
           return
         }
-        throw error
+        throw err
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al cargar los mazos"
