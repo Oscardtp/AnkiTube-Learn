@@ -26,10 +26,17 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 10080  # 7 days
 
+    # AI — OpenRouter
+    openrouter_api_key: str = "dummy-for-local-dev"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model_openrouter: str = "meta-llama/llama-3.2-3b-instruct:free"  # Primary free
+    llm_model_openrouter_free_secondary: str = "deepseek/deepseek-chat-v3-0324:free"  # Better quality fallback
+    llm_model_openrouter_free_tertiary: str = "google/gemini-3-flash-preview:free"  # Google latest free
+
     # AI — Gemini
     google_api_key: str
     llm_model_free: str = "gemini-2.0-flash"
-    llm_model_fluente: str = "gemini-1.5-pro"
+    llm_model_fluente: str = "gemini-1.5-pro-002"
 
     # AI — Anthropic
     anthropic_api_key: str
@@ -39,6 +46,7 @@ class Settings(BaseSettings):
     temp_flash: float = 0.3
     temp_pro: float = 0.4
     temp_claude: float = 0.2
+    temp_openrouter: float = 0.3
 
     # AI circuit breaker
     circuit_breaker_threshold: int = 3

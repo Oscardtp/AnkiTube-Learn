@@ -33,6 +33,7 @@ class DeckInDB(BaseModel):
 
     class Config:
         populate_by_name = True
+        protected_namespaces = ()
 
 
 class GenerateRequest(BaseModel):
@@ -63,6 +64,9 @@ class GenerateResponse(BaseModel):
     model_used: str
     total_cards: int
 
+    class Config:
+        protected_namespaces = ()
+
 
 class DeckPreviewResponse(BaseModel):
     deck_id: str
@@ -74,6 +78,9 @@ class DeckPreviewResponse(BaseModel):
     cards: list[Card]
     model_used: str
     total_cards: int
+
+    class Config:
+        protected_namespaces = ()
 
 
 class AddCardRequest(BaseModel):

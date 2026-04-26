@@ -22,15 +22,72 @@ CONTEXT_DESCRIPTIONS = {
     "academic": "inglés académico — escritura formal, presentaciones, vocabulario universitario",
 }
 
-COLOMBIAN_NOTE_EXAMPLES = """
-Ejemplos de colombian_note correcto:
+SYSTEM_PROMPT_TEMPLATE = """Eres un asistente especializado en procesamiento estructurado de lenguaje para sistemas de aprendizaje.
+Tu rol NO es ser creativo — eres preciso, consistente y estructurado.
+
+REGLAS ABSOLUTAS:
+1. Responde ÚNICAMENTE con JSON válido. Sin texto antes o después. Sin bloques markdown.
+2. Si no hay suficientes frases útiles en la transcripción, genera menos tarjetas — nunca inventas contenido.
+3. El campo "colombian_note" es OBLIGATORIO. Sin él, la tarjeta es inválida y se descarta.
+4. Traducciones en español colombiano natural — NO neutro de doblaje.
+
+PROCESO POR TARJETA:
+1. Lee cada frase de la transcripción original
+2. Si es útil, natural y práctica → ÚSALA
+3. Si tiene "filler words" (uh, um, kinda, stuff, you know, like) → LÍMPIALA
+4. Si es de baja calidad → REESCRÍBELA con una frase útil similar
+5. Si es genérica de YouTube ("Hey guys!", "Don't forget to like and subscribe") → DESCÁRTALA
+
+ENFOQUE:
+- Extrae frases cortas, prácticas y gramaticalmente correctas
+- Prefiere inglés oral informal sobre inglés corporativo o formal
+- Las tarjetas deben tener valor de aprendizaje único — evita repetir la misma idea
+- Puedes dividir frases largas en partes más pequeñas si mejora el valor educativo
+- No inventes ideas nuevas — deriva todo de la transcripción
+
+NIVEL DEL USUARIO: {level} — {cefr_desc}
+CONTEXTO: {safe_context}
+
+IDIOMA:
+- "front": siempre en inglés (preferiblemente extraído directamente del video)
+- "back": español colombiano natural — usa "tú", no "usted"
+- Usa expresiones colombianas reales: "chévere", "bacano", "parce", "¿Quiubo?", "pelado", "la embarré"
+
+CARD_TYPES:
+- "vocabulary": una palabra clave con su contexto
+- "phrase": expresión o frase completa de uso cotidiano
+- "idiom": modismo o expresión idiomática
+- "grammar_pattern": patrón gramatical con ejemplo del video
+
+COLOMBIAN_NOTE — ejemplos del equivalente colombiano real:
 - "It's on me" → "Yo invito / Corre por mi cuenta — como cuando alguien dice 'listo, yo pago esto'"
 - "Let's call it a day" → "Ya vamonos — como cuando es tarde y dicen 'chao, hasta mañana'"
 - "What's up?" → "¿Qué más? / ¿Quiubo? — el saludo casual colombiano de toda la vida"
 - "I'm broke" → "Estoy pelado / Sin un peso — 'este mes quedé en la olla'"
 - "Hold on" → "Espérese un momento — como cuando dicen '¿me regala un momento?'"
-- "You're kidding me" → "¿En serio? / ¡No me diga! — como '¿me está tomando del pelo?'"
-"""
+
+ESTRUCTURA JSON:
+{{
+  "cards": [
+    {{
+      "front": "frase en inglés (del video o ligeramente reescrita)",
+      "back": "traducción en español colombiano natural",
+      "keyword": "palabra clave o concepto central",
+      "grammar_note": "explicación gramatical simple en español — por qué se usa así",
+      "context_note": "cuándo usar esta frase en la vida real",
+      "colombian_note": "equivalente colombiano real con ejemplo de uso cotidiano",
+      "timestamp_start": 12.5,
+      "timestamp_end": 18.3,
+      "card_type": "phrase"
+    }}
+  ]
+}}
+
+REGLAS DE CALIDAD:
+- Detecta falsos cognados: "embarrassed" ≠ "embarazada", "actually" ≠ "actualmente"
+- No incluyas saludos genéricos ni meta-comentarios de YouTube
+- No retornen fewer sentences si más válidas existen
+- El output debe ser JSON válido"""
 
 
 def _sanitize_for_prompt(text: str) -> str:
@@ -77,61 +134,34 @@ def build_prompt(
 ) -> tuple[str, str]:
     """
     Returns (system_prompt, user_prompt) for all AI models.
-    The same prompt is used for Gemini Flash, Gemini Pro, and Claude.
+    The same prompt is used for all AI providers.
     """
 
     cefr_desc = CEFR_DESCRIPTIONS.get(level, CEFR_DESCRIPTIONS["B1"])
     context_desc = CONTEXT_DESCRIPTIONS.get(context, CONTEXT_DESCRIPTIONS["general"])
-    
+
     # Sanitize user inputs to prevent prompt injection
     safe_transcript = _sanitize_for_prompt(transcript_text)
     safe_context = _sanitize_for_prompt(context_desc)
 
-    system_prompt = f"""Eres un experto en pedagogía del inglés para hispanohablantes colombianos.
-Tu única función es analizar transcripciones de videos de YouTube y generar tarjetas de memoria (flashcards) para Anki.
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        level=level,
+        cefr_desc=cefr_desc,
+        safe_context=safe_context,
+    )
 
-NIVEL DEL USUARIO: {level} — {cefr_desc}
-CONTEXTO: {safe_context}
+    user_prompt = f"""Extrae frases útiles de esta transcripción y genera tarjetas de memoria.
 
-REGLAS ABSOLUTAS — NUNCA las rompas:
-1. Responde ÚNICAMENTE con JSON válido. Cero texto antes o después. Cero bloques markdown.
-2. Genera entre {min_cards} y {max_cards} tarjetas — ni más, ni menos.
-3. Selecciona SOLO frases apropiadas para nivel {level}. Si el video es muy avanzado, extrae las partes más simples.
-4. Las explicaciones van en español colombiano natural — NO neutro de doblaje. Di "chévere", "bacano", "parce" cuando aplique.
-5. El campo "colombian_note" es OBLIGATORIO en cada tarjeta. Si no generas uno real y específico, la tarjeta es inválida.
-6. Detecta falsos cognados: "embarrassed" ≠ "embarazada", "actually" ≠ "actualmente", "eventually" ≠ "eventualmente".
-7. El campo "front" siempre en inglés. El campo "back" siempre en español colombiano.
-
-TIPOS DE TARJETA:
-- "vocabulary": una palabra clave con su contexto de uso
-- "phrase": una expresión o frase completa de uso cotidiano
-- "idiom": modismo o expresión idiomática
-- "grammar_pattern": patrón gramatical con ejemplo del video
-
-{COLOMBIAN_NOTE_EXAMPLES}
-
-ESTRUCTURA JSON REQUERIDA:
-{{
-  "cards": [
-    {{
-      "front": "frase en inglés exacta del video",
-      "back": "traducción en español colombiano natural",
-      "keyword": "la palabra o concepto clave de esta tarjeta",
-      "grammar_note": "explicación gramatical simple en español — por qué se usa así",
-      "context_note": "cuándo usar esta frase en la vida real",
-      "colombian_note": "equivalente colombiano real y específico con ejemplo de uso cotidiano",
-      "timestamp_start": 12.5,
-      "timestamp_end": 18.3,
-      "card_type": "phrase"
-    }}
-  ]
-}}"""
-
-    user_prompt = f"""Analiza esta transcripción y genera las tarjetas siguiendo exactamente el formato indicado.
-
-TRANSCRIPCIÓN:
+TRANSCRIPCIÓN DEL VIDEO:
 {safe_transcript}
 
-Recuerda: JSON válido únicamente, entre {min_cards} y {max_cards} tarjetas, nivel {level}, colombian_note obligatorio en cada tarjeta."""
+REQUISITOS:
+- Genera entre {min_cards} y {max_cards} tarjetas
+- Solo usa frases de la transcripción (puedes limpiarlas ligeramente)
+- Cada tarjeta debe tener un "colombian_note" real y específico
+- Nivel: {level} — {cefr_desc}
+- Contexto: {context_desc}
+
+JSON válido únicamente."""
 
     return system_prompt, user_prompt

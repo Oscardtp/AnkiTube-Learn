@@ -2,18 +2,20 @@
 Central AI Router — the brain of AnkiTube Learn.
 All AI calls go through here. Never call Gemini or Anthropic directly from routes.
 
-Fallback order: Gemini Flash → Gemini Pro → Claude → error
+Fallback order: OpenRouter → OpenRouter Secondary → OpenRouter Tertiary → Gemini Flash → Claude → error
 Circuit breaker: skip provider for 5 min after 3 consecutive failures.
 """
 
 import json
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
 import google.generativeai as genai
 import anthropic
+import httpx
 
 from config import get_settings
 from models.deck import Card
@@ -28,21 +30,29 @@ anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
 # Circuit breaker state — in-memory for MVP (Redis in Phase 2)
 _circuit_breaker: dict[str, dict] = {
+    "openrouter": {"failures": 0, "open_until": None},
+    "openrouter_secondary": {"failures": 0, "open_until": None},
+    "openrouter_tertiary": {"failures": 0, "open_until": None},
     "flash": {"failures": 0, "open_until": None},
     "pro": {"failures": 0, "open_until": None},
     "claude": {"failures": 0, "open_until": None},
 }
 
 # Map user tier to provider key
+# MVP: OpenRouter free → OpenRouter Secondary → OpenRouter Tertiary fallback chain
+# Premium/Nativo: código listo, activar cuando haya pagos (Stripe)
 TIER_TO_PROVIDER = {
-    "user": "flash",
-    "tester": "pro",
-    "premium": "pro",
-    "superadmin": "claude",
-    "nativo": "claude",
+    "user": "openrouter",       # Explorador → OpenRouter free
+    "tester": "openrouter",    # Tester → OpenRouter free
+    "premium": "openrouter",   # Temporal hasta Stripe (futuro: "pro")
+    "superadmin": "claude",     # Keep para debugging
+    "nativo": "openrouter",     # Temporal hasta Stripe (futuro: "claude")
 }
 
 PROVIDER_TO_MODEL = {
+    "openrouter": settings.llm_model_openrouter,
+    "openrouter_secondary": settings.llm_model_openrouter_free_secondary,
+    "openrouter_tertiary": settings.llm_model_openrouter_free_tertiary,
     "flash": settings.llm_model_free,
     "pro": settings.llm_model_fluente,
     "claude": settings.llm_model_nativo,
@@ -226,6 +236,76 @@ async def _call_claude(
 
     raise ValueError("Claude did not return a tool_use block")
 
+
+async def _call_openrouter(
+    model_name: str,
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float,
+    max_tokens: int,
+) -> list[dict]:
+    """Call OpenRouter with specified model for structured JSON output."""
+    url = f"{settings.openrouter_base_url}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://ankitubelearn.com",
+        "X-Title": "AnkiTube Learn",
+    }
+    payload = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"},
+    }
+
+    logger.info(f"[OPENROUTER] Request: model={model_name}, temp={temperature}, max_tokens={max_tokens}")
+    logger.debug(f"[OPENROUTER] User prompt length: {len(user_prompt)} chars")
+
+    # Retry up to 3 times for rate limiting (exponential backoff)
+    last_error: Optional[str] = None
+    for attempt in range(3):
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            break
+        elif response.status_code == 429:
+            # Rate limited — wait and retry with backoff
+            last_error = "rate-limited"
+            wait_time = 2 ** attempt * 2  # 2s, 4s, 8s
+            logger.info(f"OpenRouter rate-limited, retrying in {wait_time}s (attempt {attempt + 1}/3)")
+            await asyncio.sleep(wait_time)
+            continue
+        else:
+            raise ValueError(f"OpenRouter error {response.status_code}: {response.text}")
+
+    if response.status_code != 200:
+        raise ValueError(f"OpenRouter error after retries: {last_error}")
+
+    data = response.json()
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    # Parse JSON from response (model returns raw text, not wrapped in JSON)
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        # Try to extract JSON from markdown code block
+        match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
+        if match:
+            parsed = json.loads(match.group(1))
+        else:
+            raise ValueError(f"OpenRouter returned invalid JSON: {content[:200]}")
+
+    logger.info(f"[OPENROUTER] Response: {len(content)} chars, {len(parsed.get('cards', []))} cards")
+
+    return parsed.get("cards", [])
+
+
 def _get_mock_cards() -> list[Card]:
     """Mock cards for development — replace with real AI when credits available."""
     return [
@@ -319,11 +399,11 @@ async def generate_cards(
         max_cards=max_cards,
     )
 
+    # Log transcript para debugging (primeros 200 chars)
+    logger.info(f"[OPENROUTER] Transcript length: {len(transcript_text)} chars")
+    logger.debug(f"[OPENROUTER] Transcript preview: {transcript_text[:200]}...")
+
     # Determine provider order based on user tier + circuit breaker
-    # DEVELOPMENT MODE — remove when AI credits are available
-    if settings.use_mock_ai:
-        logger.info("Using mock AI cards (development mode)")
-        return _get_mock_cards(), "mock-development"        
     primary_provider = TIER_TO_PROVIDER.get(user_role, "flash")
     fallback_order = _get_fallback_order(primary_provider)
 
@@ -337,7 +417,15 @@ async def generate_cards(
         try:
             logger.info(f"Calling provider: {provider} (model: {PROVIDER_TO_MODEL[provider]})")
 
-            if provider in ("flash", "pro"):
+            if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                raw_cards = await _call_openrouter(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=settings.temp_openrouter,
+                    max_tokens=3000,
+                )
+            elif provider in ("flash", "pro"):
                 temperature = settings.temp_flash if provider == "flash" else settings.temp_pro
                 max_tokens = 2000 if provider == "flash" else 3000
                 raw_cards = await _call_gemini(
@@ -377,10 +465,15 @@ async def generate_cards(
 
 def _get_fallback_order(primary: str) -> list[str]:
     """Build fallback chain starting from primary provider."""
-    all_providers = ["flash", "pro", "claude"]
+    # MVP: solo providers gratuitos para evitar costos inesperados
+    # until payments (Stripe) are configured
+    free_providers = ["openrouter", "openrouter_secondary", "openrouter_tertiary", "flash"]
+    paid_providers = ["pro", "claude"]
+
     try:
-        idx = all_providers.index(primary)
-        return all_providers[idx:] + all_providers[:idx]
+        idx = free_providers.index(primary)
+        return free_providers[idx:] + free_providers[:idx]
     except ValueError:
-        logger.warning(f"Unknown provider '{primary}', using default fallback order")
-        return all_providers
+        # Primary could still be pro/claude (future), fall back to free only
+        logger.warning(f"Unknown provider '{primary}', using free providers only for MVP")
+        return free_providers

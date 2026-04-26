@@ -8,7 +8,7 @@ from bson import ObjectId
 
 from database import get_db
 from models.deck import GenerateRequest, GenerateResponse, DeckPreviewResponse, AddCardRequest, Card
-from services.youtube_mock import get_transcript, transcript_to_text
+from services.youtube_real import get_transcript, transcript_to_text
 from services.ai_router import generate_cards
 from services.anki_service import generate_apkg
 from utils.auth import get_current_user, require_auth
