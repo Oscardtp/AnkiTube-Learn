@@ -89,9 +89,9 @@ export default function MinimalNavbar({ logoNotLink = false }: MinimalNavbarProp
           {logoNotLink ? (
             <div className="flex items-center gap-2">{logo}</div>
           ) : (
-            <a href="/" className="flex items-center gap-2">
-              {logo}
-            </a>
+             <Link href="/" className="flex items-center gap-2">
+               {logo}
+             </Link>
           )}
         </div>
 

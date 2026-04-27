@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import { LandingLayout } from "@/components/layout/LandingLayout"
+import ClientLayout from "./ClientLayout"
 
 export const metadata: Metadata = {
   title: "AnkiTube Learn — Convierte YouTube en mazos Anki con audio",
@@ -20,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="min-h-screen bg-surface">
-        <LandingLayout>{children}</LandingLayout>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   )
