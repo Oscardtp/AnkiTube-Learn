@@ -7,9 +7,10 @@ from bson import ObjectId
 
 from database import get_db
 from models.deck import GenerateRequest, GenerateResponse, DeckPreviewResponse, AddCardRequest, Card
-from services.youtube_mock import get_transcript, transcript_to_text
+from services.youtube_mock import get_transcript, transcript_to_text, is_english_content
 from services.ai_router import generate_cards
 from services.anki_service import generate_apkg
+from services.audio_extractor import extract_audio_segments_batch, check_dependencies
 from utils.auth import get_current_user, require_auth
 from utils.freemium import has_exceeded_daily_limit, get_max_cards_for_role
 from utils.rate_limit import limiter
@@ -63,6 +64,30 @@ async def generate_deck(
             detail="Este video no tiene subtítulos disponibles.",
         )
 
+    # Step 1.5: Verify video is primarily in English
+    is_english, detected_lang = is_english_content(transcript_data["transcript"])
+    
+    if not is_english:
+        language_names = {
+            "en": "Inglés",
+            "es": "Español",
+            "fr": "Francés",
+            "de": "Alemán",
+            "it": "Italiano",
+            "pt": "Portugués",
+            "ru": "Ruso",
+            "ja": "Japonés",
+            "ko": "Coreano",
+            "zh": "Chino",
+            "ar": "Árabe",
+            "hi": "Hindi",
+        }
+        lang_name = language_names.get(detected_lang, detected_lang.upper())
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El video debe ser principalmente en inglés. Detectamos que este video está en {lang_name}.",
+        )
+
     # Step 2: Generate cards via AI Router
     max_cards = get_max_cards_for_role(user_role)
 
@@ -87,7 +112,45 @@ async def generate_deck(
             detail="No se pudieron generar tarjetas para este video. Intenta con otro nivel o video.",
         )
 
-    # Step 3: Save deck to MongoDB
+    # Step 3: Extract audio segments for each card (Phase 1.5 feature)
+    audio_files = {}
+    try:
+        # Check if yt-dlp and ffmpeg are available
+        deps = check_dependencies()
+        if deps.get("yt-dlp") and deps.get("ffmpeg"):
+            # Prepare segments for batch extraction
+            segments = []
+            for i, card in enumerate(cards):
+                segment_id = f"card_{i}"
+                segments.append({
+                    "id": segment_id,
+                    "start": card.timestamp_start,
+                    "end": card.timestamp_end,
+                    "filename": f"card_{deck_id}_{i}.mp3",
+                })
+
+            # Extract all audio segments
+            audio_paths = extract_audio_segments_batch(
+                youtube_url=payload.youtube_url,
+                segments=segments,
+            )
+
+            # Map audio files to cards and update audio_filename
+            for i, card in enumerate(cards):
+                segment_id = f"card_{i}"
+                if segment_id in audio_paths:
+                    card.audio_filename = f"card_{deck_id}_{i}.mp3"
+                    audio_files[card.audio_filename] = audio_paths[segment_id]
+
+            logger.info(f"Extracted {len(audio_files)} audio segments for deck {deck_id}")
+        else:
+            missing = [k for k, v in deps.items() if not v]
+            logger.warning(f"Audio extraction skipped: missing dependencies: {missing}")
+    except Exception as e:
+        logger.warning(f"Audio extraction failed for deck {deck_id}: {e}")
+        # Continue without audio - cards will still work
+
+    # Step 4: Save deck to MongoDB
     deck_doc = {
         "user_id": user_id,
         "anonymous_session_id": payload.anonymous_session_id if not user_id else None,
@@ -105,7 +168,7 @@ async def generate_deck(
     result = await db.decks.insert_one(deck_doc)
     deck_id = str(result.inserted_id)
 
-    # Step 4: Update freemium counters for authenticated free users
+    # Step 5: Update freemium counters for authenticated free users
     if user_id and user_doc:
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
@@ -115,7 +178,7 @@ async def generate_deck(
             },
         )
 
-    logger.info(f"Deck generated: {deck_id} | model: {model_used} | cards: {len(cards)} | user: {user_id or 'anonymous'}")
+    logger.info(f"Deck generated: {deck_id} | model: {model_used} | cards: {len(cards)} | user: {user_id or 'anonymous'} | audio: {len(audio_files)} files")
 
     return GenerateResponse(
         deck_id=deck_id,
@@ -223,11 +286,54 @@ async def download_deck(
 
     cards = [Card(**c) for c in deck.get("cards", [])]
 
+    # Extract audio files if not already extracted (for decks created before audio feature)
+    audio_files = {}
+    cards_with_audio = False
+    for card in cards:
+        if card.audio_filename:
+            cards_with_audio = True
+            break
+
+    # If no audio filenames, try to extract audio now
+    if not cards_with_audio and deck.get("video_id"):
+        try:
+            deps = check_dependencies()
+            if deps.get("yt-dlp") and deps.get("ffmpeg"):
+                # Reconstruct YouTube URL from video_id (mock fallback)
+                youtube_url = f"https://www.youtube.com/watch?v={deck['video_id']}"
+                
+                segments = []
+                for i, card in enumerate(cards):
+                    segment_id = f"card_{i}"
+                    segments.append({
+                        "id": segment_id,
+                        "start": card.timestamp_start,
+                        "end": card.timestamp_end,
+                        "filename": f"card_{deck_id}_{i}.mp3",
+                    })
+
+                audio_paths = extract_audio_segments_batch(
+                    youtube_url=youtube_url,
+                    segments=segments,
+                )
+
+                for i, card in enumerate(cards):
+                    segment_id = f"card_{i}"
+                    if segment_id in audio_paths:
+                        card.audio_filename = f"card_{deck_id}_{i}.mp3"
+                        audio_files[card.audio_filename] = audio_paths[segment_id]
+
+                logger.info(f"Extracted {len(audio_files)} audio segments for download: {deck_id}")
+        except Exception as e:
+            logger.warning(f"Audio extraction failed during download for deck {deck_id}: {e}")
+            # Continue without audio
+
     try:
         apkg_bytes = generate_apkg(
             deck_id=deck_id,
             video_title=deck["video_title"],
             cards=cards,
+            audio_files=audio_files if audio_files else None,
         )
     except Exception as e:
         logger.error(f"APKG generation failed for deck {deck_id}: {e}")

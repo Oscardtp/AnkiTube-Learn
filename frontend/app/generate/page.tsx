@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Play, ChevronDown, Loader2, Sparkles, Briefcase, Plane, Gamepad2, GraduationCap } from "lucide-react"
+import { Play, ChevronDown, Loader2, Sparkles, Briefcase, Plane, Gamepad2, GraduationCap, AlertCircle } from "lucide-react"
 
 const CEFR_LEVELS = [
   { value: "A1", label: "A1 — Principiante", desc: "Saludos, números, colores" },
@@ -36,6 +36,23 @@ export default function GeneratePage() {
   const [error, setError] = useState("")
 
   const isValidUrl = url.includes("youtube.com/watch") || url.includes("youtu.be/")
+
+  // Parse error to detect language error
+  function parseError(err: any): { message: string; isLanguageError?: boolean } {
+    if (!err.message) return { message: "Algo salió mal. Intenta de nuevo." }
+    
+    // Check if it's a language detection error from backend
+    const langMatch = err.message.match(/Detectamos que este video está en (\w+)/)
+    if (langMatch) {
+      const detectedLang = langMatch[1]
+      return {
+        message: `El video debe ser principalmente en inglés. Detectamos que este video está en ${detectedLang}.`,
+        isLanguageError: true,
+      }
+    }
+    
+    return { message: err.message }
+  }
 
   async function handleGenerate() {
     if (!url.trim()) {
@@ -86,7 +103,8 @@ export default function GeneratePage() {
 
     } catch (err: any) {
       clearInterval(stepTimer)
-      setError(err.message || "Algo salió mal. Intenta de nuevo.")
+      const parsed = parseError(err)
+      setError(parsed.message)
       setLoading(false)
       setCurrentStep(0)
     }
@@ -124,7 +142,18 @@ export default function GeneratePage() {
             />
           </div>
           {error && (
-            <p className="mt-2 text-sm text-error">{error}</p>
+            <div className="mt-2" role="alert">
+              <div
+                className={`border-l-4 p-3 rounded-lg flex items-center transition duration-300 ease-in-out transform hover:scale-[1.02] ${
+                  error.includes("inglés") || error.includes("Detectamos")
+                    ? "bg-red-100 dark:bg-red-900 border-red-500 dark:border-red-700 text-red-900 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-800"
+                    : "bg-yellow-100 dark:bg-yellow-900 border-yellow-500 dark:border-yellow-700 text-yellow-900 dark:text-yellow-100 hover:bg-yellow-200 dark:hover:bg-yellow-800"
+                }`}
+              >
+                <AlertCircle className="h-5 w-5 flex-shrink-0 mr-2" />
+                <p className="text-xs font-semibold">{error}</p>
+              </div>
+            </div>
           )}
         </div>
 
