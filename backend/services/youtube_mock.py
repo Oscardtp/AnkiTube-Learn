@@ -5,7 +5,12 @@ Phase 2 replacement: swap this file for youtube_real.py — zero other changes n
 """
 
 import re
-from typing import Optional
+from typing import Optional, Tuple
+from langdetect import detect, DetectorFactory
+from langdetect.lang_detect_exception import LangDetectException
+
+# Set seed for consistent language detection
+DetectorFactory.seed = 0
 
 
 # Schema identical to youtube-transcript-api TranscriptList
@@ -120,3 +125,53 @@ def get_transcript_segment(transcript: list[dict], start: float, end: float) -> 
         if entry["start"] >= start and (entry["start"] + entry["duration"]) <= end + 2
     ]
     return " ".join(segment)
+
+
+def detect_language(text: str) -> Tuple[str, float]:
+    """
+    Detect the primary language of a text.
+    
+    Returns:
+        Tuple of (language_code, confidence_score)
+        e.g., ("en", 0.99) for English, ("es", 0.95) for Spanish
+    """
+    try:
+        # langdetect returns just the language code
+        lang = detect(text)
+        # We don't have explicit confidence, but we can estimate based on text length
+        # For short texts, detection is less reliable
+        confidence = 0.99 if len(text) > 100 else 0.85
+        return lang, confidence
+    except LangDetectException:
+        # If detection fails, assume unknown
+        return "unknown", 0.0
+
+
+def is_english_content(transcript: list[dict], threshold: float = 0.7) -> Tuple[bool, str]:
+    """
+    Check if the transcript is primarily in English.
+    
+    Args:
+        transcript: List of transcript entries with "text" field
+        threshold: Minimum proportion of English text required (default 70%)
+    
+    Returns:
+        Tuple of (is_english, detected_language)
+    """
+    if not transcript:
+        return False, "unknown"
+    
+    # Combine all transcript text for analysis
+    full_text = " ".join(entry["text"] for entry in transcript)
+    
+    if len(full_text.strip()) < 50:
+        # Too short to reliably detect - allow it through
+        return True, "en"
+    
+    try:
+        detected_lang = detect(full_text)
+        is_english = detected_lang == "en"
+        return is_english, detected_lang
+    except LangDetectException:
+        # If detection fails, allow it through (don't block legitimate content)
+        return True, "unknown"

@@ -1,6 +1,6 @@
 # AnkiTube Learn — CLAUDE.md
 ## Contexto completo + Estado actual
-**Última actualización:** Marzo 2026 | Colombia
+**Última actualización:** Mayo 2026 | Colombia
 
 ---
 
@@ -12,28 +12,37 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 **Mercado:** Colombianos 22-38 años aprendiendo inglés (BPO/Call Center prioritario)  
 **Dominio:** ankitubelearn.com  
 **GitHub:** https://github.com/Oscardtp/AnkiTube-Learn  
-**Especificación oficial:** AnkiTubeLearn_Especificacion_v8.docx
 
 ---
 
-## 📊 Estado Actual — Marzo 2026
+## 📊 Estado Actual — Mayo 2026
 
 ### ✅ COMPLETO
 
-**Backend FastAPI** — 27 archivos, totalmente funcional, corriendo localmente en `http://127.0.0.1:8000`
-- Endpoints principales probados (/generate, /preview, /download, /feedback, licencias, superadmin)
+**Backend FastAPI** — 27+ archivos, totalmente funcional
+- Endpoints principales: /generate, /preview, /download, /feedback, licencias, superadmin
 - MongoDB Atlas conectado
 - AI Router con fallback Gemini Flash → Pro → Claude
-- Modo mock activado (`USE_MOCK_AI=true` en .env)
 - Genanki generando .apkg con audio embebido
 - Auth con JWT + bcrypt
 - Sistema de licencias tester (ANKI-XXXX-XXXX)
 - Superadmin panel + 2FA en cada request
+- **Módulo Call Center Training** — frases, escenarios de práctica, seguimiento de progreso
 
-**Problemas solucionados en esta sesión:**
+**Frontend Next.js 14** — Iniciado y en desarrollo
+- Landing page (/) con generador integrado
+- Página /generate con selector CEFR + contexto + barra de progreso
+- Dashboard /app con navegación lateral (learn, practice, progress, settings)
+- Componentes de layout: AppLayout, LandingLayout, SideNavBar, TopNavBar
+- API client completo (lib/api.ts) con tipos TypeScript
+- AuthContext para gestión de autenticación
+- Hook useCallCenter para módulo de entrenamiento
+- Tailwind CSS configurado con diseño responsive
+
+**Problemas solucionados:**
 - Python 3.14 incompatible → instalado Python 3.12
 - Rust no instalado → instalado rustup
-- SSL MongoDB → added tls=True, tlsAllowInvalidCertificates=True
+- SSL MongoDB → tls=True, tlsAllowInvalidCertificates=True
 - GOOGLE_API_KEY conflictando desde env sistema → eliminada
 - Contraseña MongoDB incorrecta → reseteada en Atlas
 - bcrypt error → configurado con rounds=12
@@ -41,12 +50,18 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 
 ### ❌ PENDIENTE
 
-**Frontend Next.js 14** — No iniciado
-- /generate, /preview, /dashboard, /study/[deckId], /superadmin
-- CardFlip.tsx, StudySession.tsx, FeedbackWidget.tsx
-- NextAuth.js integración
-- useInterruptionManager() hook
-- Integración YouTube IFrame API
+**Frontend — Páginas faltantes:**
+- /preview/[deckId] — CardFlip.tsx + video iframe + botón "Faltó frase"
+- /study/[deckId] — SM-2 + fill-in-the-blank
+- Auth UI — Formularios login/register modales
+- Superadmin UI — Panel + LicenseManager
+- FeedbackWidget — 5 momentos + botón flotante
+
+**Integraciones:**
+- NextAuth.js integración completa
+- useInterruptionManager() hook global
+- YouTube IFrame API en preview
+- Conexión real backend-frontend (actualmente usa localhost:8000)
 
 **Deploy** — No iniciado
 - Railway para backend
@@ -59,7 +74,7 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 
 | Capa | Tecnología | Estado |
 |---|---|---|
-| **Frontend** | Next.js 14 + Tailwind CSS | ⏳ Pendiente |
+| **Frontend** | Next.js 14 + Tailwind CSS + TypeScript | 🟡 En desarrollo |
 | **Backend** | Python FastAPI async | ✅ Completo |
 | **Base datos** | MongoDB Atlas + Motor async | ✅ Conectado |
 | **Caché** | Redis | ⏳ Pendiente setup |
@@ -69,127 +84,236 @@ Plataforma web SaaS que convierte cualquier video de YouTube en un mazo Anki per
 | **Mazos** | genanki → .apkg | ✅ Funcional |
 | **YouTube (MVP)** | Mock con schema real | ✅ Funcional |
 | **YouTube (Fase 2)** | youtube-transcript-api + yt-dlp + FFmpeg | ⏳ Pendiente |
-| **Auth** | NextAuth.js + JWT + bcrypt | ✅ Backend, ⏳ Frontend |
+| **Auth** | JWT + bcrypt (backend), AuthContext (frontend) | ✅ Backend, 🟡 Frontend |
 | **Pagos** | Stripe | ⏳ Fase 2 |
+| **Estado** | Zustand | ✅ Instalado |
+| **Data fetching** | SWR + React Query | ✅ Instalados |
 
-**Regla crítica:** Este stack no cambia. Nunca PostgreSQL, nunca Node.js, nunca Supabase, nunca Firebase.
+**Regla crítica:** Este stack no cambia. Nunca PostgreSQL, nunca Node.js backend, nunca Supabase, nunca Firebase.
 
 ---
 
-## 🏗️ Estructura Backend — 27 Archivos
+## 🏗️ Estructura Backend — 27+ Archivos
 
 ```
 backend/
-├── main.py                    ✅
-├── config.py                  ✅
-├── database.py                ✅
-├── requirements.txt           ✅
-├── .env                       ✅
-├── Procfile                   ✅ (Railway)
+├── main.py                    ✅ FastAPI app + CORS + rate limiting
+├── config.py                  ✅ Settings con pydantic
+├── database.py                ✅ MongoDB Atlas connection
+├── requirements.txt           ✅ Dependencias Python
+├── .env.example               ✅ Template variables entorno
+├── Procfile                   ✅ Railway deploy
+├── railway.json               ✅ Railway config
 │
 ├── models/
-│   ├── user.py               ✅
-│   ├── deck.py               ✅
-│   ├── feedback.py           ✅
-│   └── license.py            ✅
+│   ├── user.py               ✅ User schema + roles
+│   ├── deck.py               ✅ Deck + Card embebido
+│   ├── feedback.py           ✅ Feedback 5 momentos
+│   └── license.py            ✅ Licencias tester
 │
 ├── routers/
-│   ├── auth.py               ✅
-│   ├── decks.py              ✅
-│   ├── feedback.py           ✅
-│   ├── licenses.py           ✅
-│   └── admin.py              ✅
+│   ├── auth.py               ✅ Register, login, me
+│   ├── decks.py              ✅ Generate, preview, download
+│   ├── feedback.py           ✅ Submit feedback
+│   ├── licenses.py           ✅ Activate codes
+│   ├── admin.py              ✅ Superadmin metrics
+│   └── callcenter.py         ✅ Módulo entrenamiento BPO
 │
 ├── services/
-│   ├── ai_router.py          ✅ (router inteligente con fallback)
-│   ├── anki_service.py       ✅ (genanki)
-│   └── youtube_mock.py       ✅ (schema idéntico al real)
+│   ├── ai_router.py          ✅ Router inteligente Gemini/Claude
+│   ├── anki_service.py       ✅ Genanki .apkg generation
+│   └── youtube_mock.py       ✅ Mock schema real YouTube
 │
 └── utils/
-    ├── prompts.py            ✅ (build_prompt() — mismo prompt para todos)
-    ├── auth.py               ✅
-    ├── freemium.py           ✅
-    └── rate_limit.py         ✅
+    ├── prompts.py            ✅ Build prompt unificado
+    ├── auth.py               ✅ JWT + bcrypt
+    ├── freemium.py           ✅ Límites plan gratis
+    └── rate_limit.py         ✅ SlowAPI rate limiter
 ```
 
 ---
 
-## 🔐 Variables de Entorno — .env Actual
+## 🏗️ Estructura Frontend — Next.js 14
+
+```
+frontend/
+├── app/
+│   ├── page.tsx              ✅ Landing page con generador
+│   ├── layout.tsx            ✅ Root layout + fonts
+│   ├── globals.css           ✅ Tailwind + custom styles
+│   ├── generate/
+│   │   └── page.tsx          ✅ Página /generate completa
+│   └── app/                  ✅ Dashboard protegido
+│       ├── layout.tsx        ✅ AppLayout con sidebar
+│       ├── page.tsx          ✅ Dashboard home
+│       ├── learn/
+│       ├── practice/
+│       ├── progress/
+│       └── settings/
+│
+├── components/
+│   ├── layout/
+│   │   ├── AppLayout.tsx     ✅ Layout dashboard
+│   │   ├── LandingLayout.tsx ✅ Layout landing
+│   │   ├── SideNavBar.tsx    ✅ Navegación lateral
+│   │   └── TopNavBar.tsx     ✅ Barra superior
+│   └── Navbar.tsx            ✅ Navbar genérico
+│
+├── lib/
+│   └── api.ts                ✅ API client completo + tipos
+│
+├── context/
+│   └── AuthContext.tsx       ✅ Auth state management
+│
+├── hooks/
+│   └── useCallCenter.ts      ✅ Hook módulo BPO
+│
+├── public/                   ✅ Assets estáticos
+├── tailwind.config.ts        ✅ Configuración Tailwind
+├── tsconfig.json             ✅ TypeScript config
+└── package.json              ✅ Dependencias + scripts
+```
+
+---
+
+## 🔐 Variables de Entorno — .env.example
 
 ```bash
-# App
-DEBUG=true
-FRONTEND_URL=http://localhost:3000
+# ── App ──────────────────────────────────────────────────────────────────────
+DEBUG=false
+FRONTEND_URL=http://localhost:3010
 
-# MongoDB
-MONGODB_URL=mongodb+srv://ankitube_admin:PASSWORD@ankitube.7mtxulv.mongodb.net/?appName=AnkiTube
+# ── MongoDB ──────────────────────────────────────────────────────────────────
+MONGODB_URL=mongodb+srv://USERNAME:PASSWORD@cluster.mongodb.net/?retryWrites=true&w=majority
 MONGODB_DB=ankitube_learn
 
-# Redis (pendiente setup)
+# ── Redis ────────────────────────────────────────────────────────────────────
 REDIS_URL=redis://localhost:6379
 
-# JWT
-JWT_SECRET=tu_clave_secreta_larga
+# ── JWT ──────────────────────────────────────────────────────────────────────
+JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRE_MINUTES=10080
 
-# AI — Gemini
-GOOGLE_API_KEY=AIza...
+# ── AI — Gemini ───────────────────────────────────────────────────────────────
+GOOGLE_API_KEY=your_google_api_key_here
 LLM_MODEL_FREE=gemini-2.0-flash
 LLM_MODEL_FLUENTE=gemini-1.5-pro
 
-# AI — Anthropic
-ANTHROPIC_API_KEY=sk-ant-...
+# ── AI — Anthropic ────────────────────────────────────────────────────────────
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 LLM_MODEL_NATIVO=claude-sonnet-4-20250514
 
-# Superadmin 2FA
-SUPERADMIN_2FA_CODE=tu_codigo_6_digitos
+# ── Superadmin 2FA ────────────────────────────────────────────────────────────
+SUPERADMIN_2FA_CODE=your_6_digit_code
 
-# Freemium
+# ── Freemium limits ───────────────────────────────────────────────────────────
 FREE_MAX_CARDS=15
 FREE_MAX_DECKS_PER_DAY=1
-
-# Development (mock mode — cambiar a false con créditos IA)
-USE_MOCK_AI=true
 ```
+
+**Nota:** No existe `.env` en el repositorio. Copia `.env.example` a `.env` y reemplaza los valores.
 
 ---
 
-## ▶️ Cómo Correr el Backend Localmente
+## ▶️ Cómo Correr el Proyecto Localmente
+
+### Backend FastAPI
 
 ```powershell
-# 1. Entrar a la carpeta
+# 1. Entrar a la carpeta backend
 cd backend
 
 # 2. Activar entorno virtual (Windows)
 .venv\Scripts\activate
 
-# 3. Arrancar el servidor
+# Linux/Mac: source .venv/bin/activate
+
+# 3. Instalar dependencias (primera vez)
+pip install -r requirements.txt
+
+# 4. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales reales
+
+# 5. Arrancar el servidor
 uvicorn main:app --reload
 
-# 4. Acceder a:
-# http://127.0.0.1:8000                    # root
-# http://127.0.0.1:8000/health             # health check
-# http://127.0.0.1:8000/docs               # Swagger (solo con DEBUG=true)
+# 6. Acceder a:
+# http://127.0.0.1:8000                    # Root endpoint
+# http://127.0.0.1:8000/health             # Health check
+# http://127.0.0.1:8000/docs               # Swagger UI (solo DEBUG=true)
+```
+
+### Frontend Next.js
+
+```powershell
+# 1. Entrar a la carpeta frontend
+cd frontend
+
+# 2. Instalar dependencias (primera vez)
+npm install
+
+# 3. Configurar variable de entorno (opcional)
+# Crear .env.local con:
+# NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+
+# 4. Arrancar servidor desarrollo
+npm run dev
+
+# 5. Acceder a:
+# http://localhost:3010                    # Landing page
+# http://localhost:3010/generate           # Generador
+# http://localhost:3010/app                # Dashboard
 ```
 
 ---
 
-## 📡 Endpoints Principales — Probados ✅
+## 📡 Endpoints Principales — Backend
 
+### Auth
 ```
-POST /api/auth/register         → crea usuario, retorna JWT
-POST /api/auth/login            → login + JWT
-GET  /api/auth/me               → perfil usuario actual
-POST /api/decks/generate        → genera 5 tarjetas mock con colombian_note
-GET  /api/decks/{id}            → obtiene deck
-GET  /api/decks/{id}/download   → descarga .apkg
-POST /api/decks/{id}/cards/add  → añade tarjeta manualmente
-GET  /api/decks/user/my-decks   → lista decks del usuario
-POST /api/feedback              → envía feedback (anonimo o auth)
-POST /api/licenses/activate     → activa código tester
-GET  /api/admin/metrics         → métricas (superadmin + 2FA)
-GET  /api/admin/users           → lista usuarios (superadmin + 2FA)
-GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
+POST /api/auth/register         → Crea usuario, retorna JWT + user info
+POST /api/auth/login            → Login + JWT + user info
+GET  /api/auth/me               → Perfil usuario actual (requiere auth)
+```
+
+### Decks
+```
+POST /api/decks/generate        → Genera mazo desde YouTube (mock)
+GET  /api/decks/{id}            → Obtiene deck completo
+GET  /api/decks/{id}/download   → Descarga archivo .apkg
+POST /api/decks/{id}/cards/add  → Añade tarjeta manualmente
+GET  /api/decks/user/my-decks   → Lista decks del usuario (auth)
+```
+
+### Feedback
+```
+POST /api/feedback              → Envía feedback (anónimo o autenticado)
+```
+
+### Licenses
+```
+POST /api/licenses/activate     → Activa código tester (ANKI-XXXX-XXXX)
+```
+
+### Admin (Superadmin + 2FA requerido)
+```
+GET  /api/admin/metrics         → Métricas generales
+GET  /api/admin/users           → Lista todos los usuarios
+GET  /api/admin/feedback        → Todos los feedbacks
+```
+
+### Call Center Training
+```
+GET  /api/callcenter/phrases          → Lista frases BPO
+GET  /api/callcenter/phrases/{id}     → Detalle frase
+POST /api/callcenter/phrases/{id}/learned → Marcar frase como aprendida
+GET  /api/callcenter/scenarios        → Escenarios práctica
+POST /api/callcenter/practice/start   → Iniciar sesión práctica
+POST /api/callcenter/practice/submit  → Enviar respuesta
+POST /api/callcenter/practice/{id}/complete → Completar sesión
+GET  /api/callcenter/progress         → Progreso usuario
+GET  /api/callcenter/achievements     → Logros desbloqueados
 ```
 
 ---
@@ -320,15 +444,29 @@ GET  /api/admin/feedback        → todos los feedbacks (superadmin + 2FA)
 
 ## 🎯 Próximos Pasos — Orden Prioridad
 
-1. ✅ Backend → completo
-2. **⏳ Frontend /generate** — URL input + selector CEFR + barra progreso
-3. **⏳ Frontend /preview** — CardFlip.tsx + video iframe + botón "Faltó frase"
-4. **⏳ Frontend /study/[deckId]** — SM-2 + fill-in-the-blank
-5. **⏳ Auth UI** — NextAuth.js + AuthModal
-6. **⏳ useInterruptionManager()** — Hook global control interrupciones
-7. **⏳ Sistema feedback** — 5 momentos + botón flotante
-8. **⏳ Superadmin UI** — Panel + LicenseManager
-9. **⏳ Deploy** — Railway backend + Vercel frontend
+### Completados ✅
+1. ✅ Backend FastAPI completo con todos los endpoints
+2. ✅ Módulo Call Center Training implementado
+3. ✅ Frontend landing page (/) con generador integrado
+4. ✅ Frontend página /generate funcional
+5. ✅ Dashboard /app con estructura de navegación
+6. ✅ API client TypeScript completo (lib/api.ts)
+7. ✅ AuthContext para gestión de autenticación
+8. ✅ Componentes de layout reutilizables
+
+### Pendientes Prioritarios 🔴
+9. **⏳ Página /preview/[deckId]** — CardFlip.tsx + video YouTube iframe + botón "Faltó frase"
+10. **⏳ Página /study/[deckId]** — Sistema SM-2 + fill-in-the-blank + audio playback
+11. **⏳ Auth UI** — Modales login/register + integración NextAuth.js
+12. **⏳ useInterruptionManager()** — Hook global para control de interrupciones
+13. **⏳ FeedbackWidget** — Componente flotante + 5 momentos de feedback
+14. **⏳ Superadmin UI** — Panel métricas + LicenseManager
+
+### Deploy y Producción ⏳
+15. **⏳ Deploy backend** — Railway con variables de entorno
+16. **⏳ Deploy frontend** — Vercel con NEXT_PUBLIC_API_URL
+17. **⏳ MongoDB Atlas** — Configurar IP allowlist para producción
+18. **⏳ Redis setup** — Caché para rate limiting y sesiones
 
 ---
 
@@ -346,4 +484,4 @@ Oscardtp — Autodidacta colombiano frustrado con métodos tradicionales. Su pro
 
 ---
 
-**AnkiTube Learn | CLAUDE.md | Marzo 2026 | Colombia**
+**AnkiTube Learn | CLAUDE.md | Mayo 2026 | Colombia**
