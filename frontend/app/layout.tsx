@@ -1,11 +1,10 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { LandingLayout } from "@/components/layout/LandingLayout"
 import ClientLayout from "./ClientLayout"
 
 export const metadata: Metadata = {
-  title: "AnkiTube Learn — Convierte YouTube en mazos Anki con audio",
-  description: "Genera flashcards Anki desde cualquier video de YouTube. Audio real embebido, nivel CEFR personalizado, explicaciones en español colombiano.",
+  title: "AnkiTube Learn — Aprende ingles con YouTube",
+  description: "Convierte cualquier video de YouTube en tarjetas Anki personalizadas. Pega el link, nosotros hacemos el resto. Hecho con amor desde Colombia.",
   keywords: "anki youtube ingles, flashcards youtube español, aprender ingles videos youtube, mazos anki automaticos",
   icons: {
     icon: "/logo/ankitube-favicon-32.svg",
@@ -19,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
-      <body className="min-h-screen bg-surface">
+    <html lang="es" className="bg-background">
+      <body className="min-h-screen">
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

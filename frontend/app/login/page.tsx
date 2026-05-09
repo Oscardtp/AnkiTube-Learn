@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
-import MinimalNavbar from "@/components/MinimalNavbar"
+import { Loader2, AlertCircle, Eye, EyeOff, Play, ArrowLeft, Sparkles } from "lucide-react"
 import { api } from "@/lib/api"
 
 export default function LoginPage() {
@@ -19,7 +18,7 @@ export default function LoginPage() {
     e.preventDefault()
 
     if (!email.trim() || !password.trim()) {
-      setError("Complete todos los campos, parcero")
+      setError("Ey parcero, llena todos los campos")
       return
     }
 
@@ -33,7 +32,7 @@ export default function LoginPage() {
 
       router.push("/dashboard")
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Error al iniciar sesión"
+      const errorMessage = err instanceof Error ? err.message : "Algo fallo al iniciar sesion"
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -41,130 +40,173 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <MinimalNavbar />
+    <div className="min-h-screen bg-background flex">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-primary/80 p-12 flex-col justify-between relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
 
-      {/* Hero Section with Glassmorphism */}
-      <section className="pt-8 pb-8 px-6 md:px-12">
-        <div className="max-w-2xl mx-auto text-center">
-          <div 
-            className="p-8 rounded-3xl"
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.3)'
-            }}
-          >
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-4 leading-tight">
-              ¡Qué gusto verte de nuevo!
-            </h1>
-            <p className="text-lg text-on-surface-variant max-w-xl mx-auto">
-              Tu progreso te está esperando. ¡Hágale pues!
+        <div className="relative z-10">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 mb-20">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <Play className="w-5 h-5 text-white fill-white" />
+            </div>
+            <span className="font-bold text-xl text-white">AnkiTube</span>
+          </Link>
+
+          {/* Main Content */}
+          <div className="space-y-6">
+            <h2 className="text-4xl font-bold text-white leading-tight">
+              Que bueno verte de nuevo, parcero
+            </h2>
+            <p className="text-xl text-white/80">
+              Tu progreso te esta esperando. ¡Hagale pues!
             </p>
           </div>
         </div>
-      </section>
 
-      {/* Login Card */}
-      <section className="pb-16 px-6 md:px-12">
-        <div className="max-w-md mx-auto">
-          <div 
-            className="bg-surface-container-lowest rounded-3xl p-8"
-            style={{ boxShadow: '0 8px 24px rgba(25, 28, 30, 0.06)' }}
-          >
-            <form onSubmit={handleLogin}>
-              {error && (
-                <div className="mb-6 p-4 bg-error-container/30 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-error" />
-                    <p className="text-sm text-on-error-container">{error}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Email Input */}
-              <div className="mb-6">
-                <label htmlFor="email" className="block text-sm font-semibold text-on-surface mb-2">
-                  Correo electrónico
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-4 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Password Input with Toggle */}
-              <div className="mb-6">
-                <label htmlFor="password" className="block text-sm font-semibold text-on-surface mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-4 pr-12 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors"
-                    title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Forgot Password Link */}
-              <div className="mb-6 text-right">
-                <a 
-                  href="#" 
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  ¿Olvidaste tu contraseña?
-                </a>
-              </div>
-
-              {/* CTA Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-full font-bold text-base bg-gradient-to-r from-primary to-primary-container text-white hover:opacity-90 disabled:opacity-50 transition-all"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Iniciando sesión...
-                  </>
-                ) : (
-                  "Iniciar sesión"
-                )}
-              </button>
-
-              {/* Footer */}
-              <p className="text-center text-sm text-on-surface-variant mt-6">
-                ¿No tienes cuenta?{" "}
-                <Link href="/register" className="text-primary font-medium hover:underline">
-                  Regístrate gratis
-                </Link>
-              </p>
-            </form>
+        {/* Stats */}
+        <div className="relative z-10 grid grid-cols-3 gap-6">
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+            <p className="text-2xl font-bold text-white">2,847</p>
+            <p className="text-sm text-white/70">Mazos creados</p>
+          </div>
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+            <p className="text-2xl font-bold text-white">50K+</p>
+            <p className="text-sm text-white/70">Tarjetas</p>
+          </div>
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+            <p className="text-2xl font-bold text-white">1,200+</p>
+            <p className="text-sm text-white/70">Parceros</p>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-md">
+          {/* Back Link - Mobile */}
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 lg:hidden"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Volver al inicio
+          </Link>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+              Inicia sesion
+            </h1>
+            <p className="text-muted-foreground">
+              Entra a tu cuenta y sigue aprendiendo
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-5">
+            {error && (
+              <div className="p-4 bg-destructive/10 rounded-xl border border-destructive/20">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                Correo electronico
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="w-full bg-background border border-outline/20 rounded-xl px-4 py-3.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                  Contrasena
+                </label>
+                <a href="#" className="text-sm text-primary hover:underline">
+                  ¿Se te olvido?
+                </a>
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Tu contrasena"
+                  className="w-full bg-background border border-outline/20 rounded-xl px-4 py-3.5 pr-12 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-base bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-primary/25"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                "Iniciar sesion"
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 my-8">
+            <div className="flex-1 h-px bg-outline/20" />
+            <span className="text-sm text-muted-foreground">o</span>
+            <div className="flex-1 h-px bg-outline/20" />
+          </div>
+
+          {/* Guest Access */}
+          <Link 
+            href="/"
+            className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-medium text-base border border-outline/20 text-foreground hover:bg-muted/50 transition-all"
+          >
+            <Sparkles className="w-5 h-5" />
+            Probar sin cuenta
+          </Link>
+
+          {/* Register Link */}
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            ¿No tienes cuenta?{" "}
+            <Link href="/register" className="text-primary font-medium hover:underline">
+              Registrate gratis
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

@@ -3,37 +3,30 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import MinimalNavbar from "@/components/MinimalNavbar"
-import { Loader } from "@/components/Loader"
-import { DuplicateDeckModal } from "@/components/DuplicateDeckModal"
-import { useNotifications } from "@/context/NotificationContext"
-import { api } from "@/lib/api"
 import {
+  Play,
   ChevronDown,
   Briefcase,
   Plane,
   Gamepad2,
   GraduationCap,
-  Lock,
+  Loader2,
+  Plus,
+  Youtube,
+  LogOut,
+  Settings,
+  Home,
+  LayoutDashboard,
+  Sparkles,
+  Download,
+  Calendar,
+  Layers,
+  Zap,
+  Flame,
+  Menu,
+  X,
 } from "lucide-react"
-
-// CEFR Levels
-const CEFR_LEVELS = [
-  { value: "A1", label: "A1 — Principiante", desc: "Saludos, números, colores" },
-  { value: "A2", label: "A2 — Básico", desc: "Situaciones simples del día a día" },
-  { value: "B1", label: "B1 — Intermedio", desc: "Entiendo series con subtítulos" },
-  { value: "B2", label: "B2 — Intermedio-alto", desc: "Películas sin subtítulos" },
-  { value: "C1", label: "C1 — Avanzado", desc: "Uso flexible y profesional" },
-  { value: "C2", label: "C2 — Maestría", desc: "Dominio casi nativo" },
-]
-
-// Context options
-const CONTEXTS = [
-  { value: "general", label: "General", icon: GraduationCap, desc: "Mezcla equilibrada" },
-  { value: "work", label: "Trabajo", icon: Briefcase, desc: "Oficina y llamadas", locked: true },
-  { value: "travel", label: "Viajes", icon: Plane, desc: "Aeropuertos y hoteles", locked: true },
-  { value: "gaming", label: "Gaming", icon: Gamepad2, desc: "Videojuegos en inglés", locked: true },
-]
+import { api } from "@/lib/api"
 
 // Types
 interface User {
@@ -48,12 +41,6 @@ interface User {
   name?: string
 }
 
-interface UserStats {
-  cardsCreated: number
-  studyStreak: number
-  decksGenerated: number
-}
-
 interface Deck {
   deck_id: string
   video_title: string
@@ -66,117 +53,128 @@ interface Deck {
   created_at: string
 }
 
-// Material Symbols Icon Component
-function MaterialIcon({ name, filled = false, className = "" }: { name: string; filled?: boolean; className?: string }) {
-  return (
-    <span
-      className={`material-symbols-outlined ${filled ? "material-symbols-filled" : ""} ${className}`}
-      style={{ fontVariationSettings: filled ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" : undefined }}
-    >
-      {name}
-    </span>
-  )
-}
+// CEFR Levels
+const CEFR_LEVELS = [
+  { value: "A1", label: "A1 — Principiante" },
+  { value: "A2", label: "A2 — Basico" },
+  { value: "B1", label: "B1 — Intermedio" },
+  { value: "B2", label: "B2 — Intermedio-alto" },
+  { value: "C1", label: "C1 — Avanzado" },
+  { value: "C2", label: "C2 — Maestria" },
+]
 
-// SideNavBar Component
-function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | null }) {
+// Context options
+const CONTEXTS = [
+  { value: "general", label: "General", icon: GraduationCap },
+  { value: "work", label: "Trabajo", icon: Briefcase },
+  { value: "travel", label: "Viajes", icon: Plane },
+  { value: "gaming", label: "Gaming", icon: Gamepad2 },
+]
+
+// Sidebar Component
+function Sidebar({ user, onLogout, isOpen, onClose }: { user: User | null; onLogout: () => void; isOpen: boolean; onClose: () => void }) {
   const navItems = [
-    { href: "/dashboard", label: "Panel de Control", icon: "dashboard", active: true },
-    { href: "/settings", label: "Configuración", icon: "settings", active: false },
-  ]
-
-  const bottomItems = [
-    { href: "/help", label: "Ayuda", icon: "help", active: false, placeholder: true },
+    { href: "/dashboard", label: "Panel", icon: LayoutDashboard, active: true },
+    { href: "#", label: "Configuracion", icon: Settings, disabled: true },
   ]
 
   return (
-    <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest flex-col py-6 px-4 z-50 border-r border-outline-variant/20">
-      {/* Logo */}
-      <div className="mb-10 px-2">
-        <Link href="/">
-          <h1 className="text-2xl font-black text-primary tracking-tighter hover:opacity-80 transition-opacity">AnkiTube Learn</h1>
-        </Link>
-        {user?.level && (
-          <p className="text-xs font-medium text-on-surface-variant mt-1">
-            Nivel {user.level}
-          </p>
-        )}
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+        />
+      )}
 
-      {/* Main Navigation */}
-      <nav className="flex-1 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.placeholder ? "#" : item.href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 active:scale-95 ${
-              item.active
-                ? "text-primary font-bold border-r-4 border-primary bg-primary/5"
-                : item.placeholder
-                ? "text-on-surface-variant/50 cursor-not-allowed"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container"
-            }`}
-            onClick={(e) => item.placeholder && e.preventDefault()}
-          >
-            <MaterialIcon name={item.icon} className="text-xl" />
-            <span>{item.label}</span>
-            {item.placeholder && (
-              <span className="ml-auto text-[10px] uppercase tracking-wider text-on-surface-variant/40 font-medium">Pronto</span>
-            )}
+      {/* Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 h-screen w-64 bg-card border-r border-outline/10 flex flex-col z-50
+        transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Logo */}
+        <div className="p-6 border-b border-outline/10">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+              <Play className="w-4 h-4 text-white fill-white" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground">AnkiTube</span>
+              {user?.level && (
+                <p className="text-xs text-muted-foreground">Nivel {user.level}</p>
+              )}
+            </div>
           </Link>
-        ))}
-      </nav>
+        </div>
 
-      {/* Bottom Navigation */}
-      <div className="mt-auto space-y-1 pt-6 border-t border-outline-variant/20">
-        <Link
-          href="/"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-on-surface-variant hover:text-primary hover:bg-surface-container"
-        >
-          <MaterialIcon name="home" className="text-xl" />
-          <span>Ir a la pagina principal</span>
-        </Link>
-        {bottomItems.map((item) => (
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.disabled ? "#" : item.href}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                ${item.active 
+                  ? "bg-primary/10 text-primary font-medium" 
+                  : item.disabled
+                    ? "text-muted-foreground/50 cursor-not-allowed"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }
+              `}
+              onClick={(e) => {
+                if (item.disabled) e.preventDefault()
+                onClose()
+              }}
+            >
+              <item.icon className="w-5 h-5" />
+              <span>{item.label}</span>
+              {item.disabled && (
+                <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">
+                  Pronto
+                </span>
+              )}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-outline/10 space-y-1">
           <Link
-            key={item.href}
-            href={item.placeholder ? "#" : item.href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-              item.placeholder
-                ? "text-on-surface-variant/50 cursor-not-allowed"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container"
-            }`}
-            onClick={(e) => item.placeholder && e.preventDefault()}
+            href="/"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+            onClick={onClose}
           >
-            <MaterialIcon name={item.icon} className="text-xl" />
-            <span>{item.label}</span>
-            {item.placeholder && (
-              <span className="ml-auto text-[10px] uppercase tracking-wider text-on-surface-variant/40 font-medium">Pronto</span>
-            )}
+            <Home className="w-5 h-5" />
+            <span>Ir al inicio</span>
           </Link>
-        ))}
-        {/* Logout Button */}
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left text-on-surface-variant hover:text-error hover:bg-surface-container"
-        >
-          <MaterialIcon name="logout" className="text-xl" />
-          <span>Cerrar sesión</span>
-        </button>
-      </div>
-    </aside>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Cerrar sesion</span>
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
 
 // Stats Card Component
-function StatsCard({ icon, label, value, iconBg, iconColor }: { icon: string; label: string; value: string; iconBg: string; iconColor: string }) {
+function StatsCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string; color: string }) {
   return (
-    <div className="bg-surface-container-lowest p-6 rounded-xl shadow-card border border-outline-variant/10 flex items-center gap-5 transition-transform hover:-translate-y-1 duration-300">
-      <div className={`w-12 h-12 rounded-2xl ${iconBg} flex items-center justify-center ${iconColor}`}>
-        <MaterialIcon name={icon} className="text-2xl" />
-      </div>
-      <div>
-        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-black text-on-surface">{value}</p>
+    <div className="bg-card border border-outline/10 rounded-xl p-5">
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
       </div>
     </div>
   )
@@ -185,46 +183,52 @@ function StatsCard({ icon, label, value, iconBg, iconColor }: { icon: string; la
 // Deck Card Component
 function DeckCard({ deck }: { deck: Deck }) {
   return (
-    <div className="group bg-surface-container-lowest rounded-3xl overflow-hidden shadow-card border border-outline-variant/10 transition-all hover:shadow-elevated hover:shadow-primary/5">
+    <div className="group bg-card border border-outline/10 rounded-2xl overflow-hidden hover:shadow-lg hover:shadow-black/5 transition-all">
       {/* Thumbnail */}
       <div className="aspect-video relative overflow-hidden">
         <img
           src={deck.video_thumbnail}
-          alt={`Miniatura de ${deck.video_title}`}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          alt={deck.video_title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-4 left-4 flex items-center gap-2">
-          <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md">{deck.total_cards} tarjetas</span>
-          <span className="bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-tighter">{deck.level}</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute bottom-3 left-3 flex items-center gap-2">
+          <span className="bg-white/20 backdrop-blur-md text-white text-xs font-medium px-2 py-1 rounded-md">
+            {deck.total_cards} tarjetas
+          </span>
+          <span className="bg-primary text-white text-xs font-medium px-2 py-1 rounded-md uppercase">
+            {deck.level}
+          </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6">
-        <h4 className="text-lg font-bold text-on-surface leading-snug mb-4 group-hover:text-primary transition-colors line-clamp-2">
+      <div className="p-5">
+        <h3 className="font-semibold text-foreground mb-3 line-clamp-2 group-hover:text-primary transition-colors">
           {deck.video_title}
-        </h4>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-on-surface-variant text-xs">
-            <MaterialIcon name="event" className="text-sm" />
+        </h3>
+        
+        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4" />
             <span>{new Date(deck.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</span>
           </div>
-          <div className="flex items-center gap-2 text-on-surface-variant font-bold text-xs">
-            <MaterialIcon name="auto_stories" className="text-sm" />
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-4 h-4" />
             <span>{deck.total_cards} tarjetas</span>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-2 gap-2">
           <Link
             href={`/preview/${deck.deck_id}`}
-            className="bg-primary text-white py-2.5 rounded-xl font-bold text-sm shadow-md hover:bg-primary-container transition-all flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-all"
           >
-            <MaterialIcon name="play_arrow" filled className="text-sm" />
+            <Play className="w-4 h-4" />
             Ver mazo
           </Link>
-          <button className="bg-surface-container-high text-on-surface py-2.5 rounded-xl font-bold text-sm hover:bg-surface-container-highest transition-all flex items-center justify-center gap-2">
-            <MaterialIcon name="download" className="text-sm" />
+          <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted text-foreground font-medium text-sm hover:bg-muted/80 transition-all">
+            <Download className="w-4 h-4" />
             Exportar
           </button>
         </div>
@@ -233,54 +237,41 @@ function DeckCard({ deck }: { deck: Deck }) {
   )
 }
 
-// Monthly Usage Indicator Component
-function MonthlyUsageIndicator({ totalCards }: { totalCards: number }) {
-  const maxCards = 1000
-  const percentage = Math.min((totalCards / maxCards) * 100, 100)
-  
+// Empty State Component
+function EmptyState() {
   return (
-    <div className="fixed bottom-6 right-6 z-40 hidden lg:block">
-      <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-elevated border border-outline-variant/10 w-56">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-wider">Uso del mes</span>
-          <span className="text-xs font-bold text-primary">{percentage.toFixed(0)}%</span>
-        </div>
-        <div className="h-1.5 w-full bg-surface-container-highest rounded-full mb-2 overflow-hidden">
-          <div
-            className="h-full bg-secondary rounded-full"
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-        <div className="flex justify-between items-center">
-          <p className="text-[10px] font-medium text-on-surface-variant">
-            <span className="text-on-surface font-bold">{totalCards}</span> / {maxCards} tarjetas
-          </p>
-        </div>
+    <div className="bg-card border border-outline/10 border-dashed rounded-2xl p-12 text-center">
+      <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <Layers className="w-8 h-8 text-primary" />
       </div>
+      <h3 className="text-lg font-semibold text-foreground mb-2">
+        Todavia no tienes mazos
+      </h3>
+      <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+        Genera tu primer mazo pegando un link de YouTube arriba. Es gratis y toma menos de un minuto.
+      </p>
+      <a 
+        href="#generator"
+        className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
+      >
+        <Plus className="w-4 h-4" />
+        Crear mi primer mazo
+      </a>
     </div>
   )
 }
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { error: notifyError, loading: notifyLoading, success, clearAll } = useNotifications()
   const [urlInput, setUrlInput] = useState("")
   const [level, setLevel] = useState("B1")
   const [context, setContext] = useState("general")
-  const [showLevelSelector, setShowLevelSelector] = useState(false)
-  const [showContextSelector, setShowContextSelector] = useState(false)
   const [user, setUser] = useState<User | null>(null)
-  const [stats, setStats] = useState<UserStats>({
-    cardsCreated: 0,
-    studyStreak: 0,
-    decksGenerated: 0
-  })
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [generationError, setGenerationError] = useState("")
-  const [generationStep, setGenerationStep] = useState(0)
-  const [duplicateDeck, setDuplicateDeck] = useState<Deck | null>(null)
+  const [error, setError] = useState("")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function loadUserData() {
@@ -291,17 +282,11 @@ export default function DashboardPage() {
           return
         }
 
-        // Cargar usuario desde backend
         try {
           const userData = await api.getCurrentUser()
           setUser({
             ...userData,
             name: userData.name || userData.email?.split("@")[0] || "Usuario"
-          })
-          setStats({
-            cardsCreated: userData.total_cards || 0,
-            studyStreak: 0,
-            decksGenerated: userData.total_decks || 0
           })
           localStorage.setItem("user", JSON.stringify(userData))
         } catch (err: unknown) {
@@ -312,17 +297,13 @@ export default function DashboardPage() {
             router.push("/login")
             return
           }
-          console.error("Error loading user:", err)
         }
 
-        // Cargar decks del usuario
-        if (token) {
-          try {
-            const decksData = await api.getMyDecks()
-            setDecks(decksData.decks)
-          } catch (deckError) {
-            console.error("Error loading decks:", deckError)
-          }
+        try {
+          const decksData = await api.getMyDecks()
+          setDecks(decksData.decks)
+        } catch (deckError) {
+          console.error("Error loading decks:", deckError)
         }
       } catch (error) {
         console.error("Error loading user data:", error)
@@ -341,55 +322,19 @@ export default function DashboardPage() {
   }
 
   async function handleGenerate() {
-    if (!urlInput.trim()) return
+    if (!urlInput.trim()) {
+      setError("Pega el link del video primero, parcero")
+      return
+    }
 
     const isValidUrl = urlInput.includes("youtube.com/watch") || urlInput.includes("youtu.be/")
     if (!isValidUrl) {
-      setGenerationError("Esa URL no parece ser de YouTube")
+      setError("Hmm, eso no parece ser un link de YouTube")
       return
     }
 
-    let videoId = ""
-    if (urlInput.includes("youtube.com/watch")) {
-      const url = new URL(urlInput)
-      videoId = url.searchParams.get("v") || ""
-    } else if (urlInput.includes("youtu.be/")) {
-      const url = new URL(urlInput)
-      videoId = url.pathname.slice(1)
-    }
-
-    if (!videoId) {
-      setGenerationError("No se pudo extraer el ID del video")
-      return
-    }
-
-    // Duplicate check
-    const existingDeck = decks.find((d) => {
-      const existingVideoId = d.video_id || ""
-      return existingVideoId === videoId && d.level === level
-    })
-
-    if (existingDeck) {
-      setDuplicateDeck(existingDeck)
-      setGenerating(false)
-      setGenerationStep(0)
-      return
-    }
-
-    setGenerationError("")
+    setError("")
     setGenerating(true)
-    setGenerationStep(1)
-    notifyLoading("Generando mazo, por favor espera...")
-
-    const stepTimer = setInterval(() => {
-      setGenerationStep((prev) => {
-        if (prev >= 3) {
-          clearInterval(stepTimer)
-          return prev
-        }
-        return prev + 1
-      })
-    }, 1800)
 
     try {
       const data = await api.generateDeck({
@@ -398,401 +343,235 @@ export default function DashboardPage() {
         context,
       })
 
-      clearInterval(stepTimer)
-      success("¡Mazo generado exitosamente!")
       router.push(`/preview/${data.deck_id}`)
     } catch (err: unknown) {
-      clearInterval(stepTimer)
-      const message = err instanceof Error ? err.message : "Algo salió mal"
-      setGenerationError(message)
-      notifyError(message)
+      const message = err instanceof Error ? err.message : "Algo fallo, intentalo de nuevo"
+      setError(message)
       setGenerating(false)
-      setGenerationStep(0)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-6">
-        <Loader size="lg" color="primary" />
-        <p className="text-on-surface-variant font-medium">Cargando tu dashboard...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando tu panel...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <MinimalNavbar />
-      <SideNavBar onLogout={handleLogout} user={user} />
+    <div className="min-h-screen bg-background">
+      <Sidebar 
+        user={user} 
+        onLogout={handleLogout} 
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Main Content */}
-      <main className="md:ml-64 flex-1 p-6 md:p-8 lg:p-12 max-w-[1600px]">
-        {/* TopAppBar */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 md:mb-12">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-on-surface tracking-tight">
-              ¡Hola de nuevo, {user?.name || user?.email?.split("@")[0] || "Usuario"}!
-            </h2>
-            <p className="text-on-surface-variant font-medium mt-1 text-sm md:text-base">
-              ¿Listo para otro video? Tu progreso hoy va volando.
-            </p>
-          </div>
-           <div className="flex items-center gap-4">
-            {/* Notifications */}
-            <div className="relative">
-              <button className="p-2 rounded-full hover:bg-surface-container-high transition-colors" title="Notificaciones">
-                <MaterialIcon name="notifications" className="text-on-surface-variant text-2xl" />
-              </button>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-surface" />
-            </div>
-            {/* User Info */}
-            <div className="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-on-surface">{user?.email || "Usuario"}</p>
-                <p className="text-xs text-on-surface-variant">{user?.role || "Estudiante"}</p>
+      <main className="lg:ml-64">
+        {/* Mobile Header */}
+        <header className="lg:hidden sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-outline/10 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-muted-foreground hover:text-foreground"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Play className="w-4 h-4 text-white fill-white" />
               </div>
-              <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-                <span className="text-lg font-bold text-primary">
+            </Link>
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-semibold text-primary">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+          {/* Welcome Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                ¡Que mas, {user?.name || "parcero"}!
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                ¿Listo pa&apos; seguir aprendiendo?
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-medium text-foreground">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">Plan gratuito</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-base font-semibold text-primary">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </span>
               </div>
             </div>
           </div>
-        </header>
 
-        {/* Stats Bento Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
-          <StatsCard
-            icon="style"
-            label="Tarjetas creadas"
-            value={stats.cardsCreated.toLocaleString()}
-            iconBg="bg-primary/10"
-            iconColor="text-primary"
-          />
-          <StatsCard
-            icon="local_fire_department"
-            label="Racha de estudio"
-            value={`${stats.studyStreak} días`}
-            iconBg="bg-secondary/10"
-            iconColor="text-secondary"
-          />
-          <StatsCard
-            icon="auto_stories"
-            label="Mazos generados"
-            value={stats.decksGenerated.toString()}
-            iconBg="bg-tertiary-fixed"
-            iconColor="text-tertiary"
-          />
-          <StatsCard
-            icon="bolt"
-            label="Generaciones hoy"
-            value={(user?.decks_generated_today || 0).toString()}
-            iconBg="bg-warning/10"
-            iconColor="text-warning"
-          />
-        </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatsCard
+              icon={Layers}
+              label="Tarjetas creadas"
+              value={(user?.total_cards || 0).toLocaleString()}
+              color="bg-primary/10 text-primary"
+            />
+            <StatsCard
+              icon={Flame}
+              label="Racha"
+              value="0 dias"
+              color="bg-orange-500/10 text-orange-500"
+            />
+            <StatsCard
+              icon={Sparkles}
+              label="Mazos totales"
+              value={(user?.total_decks || 0).toString()}
+              color="bg-secondary/10 text-secondary"
+            />
+            <StatsCard
+              icon={Zap}
+              label="Hoy"
+              value={(user?.decks_generated_today || 0).toString()}
+              color="bg-amber-500/10 text-amber-500"
+            />
+          </div>
 
-        {/* Generator Section */}
-        <section className="mb-8 md:mb-16">
-          <div className="bg-primary rounded-[2rem] p-6 md:p-8 lg:p-12 relative overflow-hidden shadow-2xl shadow-primary/20">
-            {/* Abstract Background Patterns */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-container/30 rounded-full -ml-10 -mb-10 blur-2xl" />
+          {/* Generator Section */}
+          <section id="generator" className="mb-10">
+            <div className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+              
+              <div className="relative z-10">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                  Generar nuevo mazo
+                </h2>
+                <p className="text-white/80 mb-6">
+                  Pega el link y yo me encargo del resto. ¡Hagale pues!
+                </p>
 
-            <div className="relative z-10 max-w-2xl">
-              <h3 className="text-white text-2xl md:text-3xl font-extrabold mb-4 leading-tight">
-                Generar nuevo mazo
-              </h3>
-              <p className="text-primary-container brightness-150 font-medium mb-6 md:mb-8 text-base md:text-lg">
-                Pega el link y yo me encargo del resto. ¡Hágale pues!
-              </p>
-
-              {/* Progress Steps */}
-              {generating && (
-                <div className="mb-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span className="text-white font-semibold text-sm">
-                      {generationStep === 1 ? "Extrayendo" : generationStep === 2 ? "Analizando" : "Generando"}...
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3].map((step) => (
-                      <div key={step} className="flex items-center gap-2">
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full transition-all ${
-                            generationStep > step ? "bg-white" : generationStep === step ? "bg-white scale-125" : "bg-white/30"
-                          }`}
-                        />
-                        {step < 3 && (
-                          <div className={`w-6 h-0.5 rounded ${generationStep > step ? "bg-white" : "bg-white/20"}`} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* URL Input */}
-              <div className="mb-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <MaterialIcon name="link" className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 text-xl" />
+                {/* Form */}
+                <div className="space-y-4">
+                  {/* URL Input */}
+                  <div className="relative">
+                    <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
                     <input
-                      type="text"
+                      type="url"
                       value={urlInput}
                       onChange={(e) => {
                         setUrlInput(e.target.value)
-                        setGenerationError("")
+                        setError("")
                       }}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-none focus:ring-4 focus:ring-primary-container/50 text-on-surface font-medium placeholder:text-slate-400 shadow-lg"
-                      onKeyDown={(e) => e.key === "Enter" && !generating && handleGenerate()}
+                      placeholder="https://youtube.com/watch?v=..."
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 pl-12 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all"
                       disabled={generating}
                     />
                   </div>
+
+                  {/* Level & Context Row */}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="relative">
+                      <select
+                        value={level}
+                        onChange={(e) => setLevel(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 pr-10 text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/30 transition-all"
+                        disabled={generating}
+                      >
+                        {CEFR_LEVELS.map((l) => (
+                          <option key={l.value} value={l.value} className="text-foreground">
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 pointer-events-none" />
+                    </div>
+
+                    <div className="flex gap-2">
+                      {CONTEXTS.map((ctx) => {
+                        const Icon = ctx.icon
+                        const isSelected = context === ctx.value
+                        return (
+                          <button
+                            key={ctx.value}
+                            onClick={() => setContext(ctx.value)}
+                            disabled={generating}
+                            className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border transition-all ${
+                              isSelected
+                                ? "bg-white/20 border-white/40 text-white"
+                                : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                            } disabled:opacity-50`}
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span className="text-xs font-medium">{ctx.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p className="text-white bg-white/10 px-4 py-2 rounded-lg text-sm">
+                      {error}
+                    </p>
+                  )}
+
+                  {/* Generate Button */}
                   <button
                     onClick={handleGenerate}
-                    disabled={generating || !urlInput.trim()}
-                    className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    disabled={generating}
+                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-base bg-white text-primary hover:bg-white/90 disabled:opacity-50 transition-all"
                   >
                     {generating ? (
                       <>
-                        <span>Generando...</span>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Generando tu mazo...
                       </>
                     ) : (
                       <>
-                        <span>Generar</span>
-                        <MaterialIcon name="bolt" filled className="text-xl" />
+                        <Sparkles className="w-5 h-5" />
+                        Generar mazo
                       </>
                     )}
                   </button>
                 </div>
               </div>
+            </div>
+          </section>
 
-               {/* Level and Context Selectors - Grid Layout */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                 {/* Level Selector */}
-                 <div className="space-y-3 text-left">
-                   <label className="text-sm font-bold text-on-surface ml-1">¿Qué nivel tenés hoy?</label>
-                    <div className="flex flex-wrap gap-2">
-                      {CEFR_LEVELS.map((l) => (
-                        <button
-                          key={l.value}
-                          onClick={() => setLevel(l.value)}
-                          disabled={generating}
-                          className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
-                            level === l.value
-                              ? "bg-[#1A56DB] text-[#ffffff] shadow-[#1A56DB]/20"
-                              : "bg-[#e6e8ea] text-[#191c1e] hover:bg-[#d1d5db]"
-                          } disabled:opacity-50 disabled:hover:scale-100`}
-                        >
-                          {l.value}
-                        </button>
-                      ))}
-                    </div>
-                   <p className="text-xs text-on-surface-variant px-1">
-                     {CEFR_LEVELS.find((l) => l.value === level)?.desc}
-                   </p>
-                 </div>
-
-                 {/* Context Selector */}
-                 <div className="space-y-3 text-left">
-                   <label className="text-sm font-bold text-on-surface ml-1">¿Para qué necesitás el inglés?</label>
-                   <div className="flex flex-wrap gap-3">
-                      {CONTEXTS.slice(0, 1).map((ctx) => {
-                        const Icon = ctx.icon
-                        return (
-                          <button
-                            key={ctx.value}
-                            onClick={() => !ctx.locked && setContext(ctx.value)}
-                            disabled={generating || ctx.locked}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all ${
-                              context === ctx.value
-                                ? "bg-[#1A56DB] text-[#ffffff] shadow-[#1A56DB]/20"
-                                : "bg-[#e6e8ea] text-[#191c1e] hover:bg-[#d1d5db]"
-                            } disabled:opacity-50 disabled:hover:scale-100`}
-                          >
-                            <Icon className="w-4 h-4" />
-                            <span>{ctx.label}</span>
-                          </button>
-                        )
-                      })}
-                     <button
-                       onClick={() => setShowContextSelector(!showContextSelector)}
-                       disabled={generating}
-                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-surface-container-high text-on-surface hover:bg-surface-container-highest shadow-lg transition-all disabled:opacity-50"
-                     >
-                       <span>{CONTEXTS.find((c) => c.value === context)?.label || "General"}</span>
-                       <ChevronDown className="w-4 h-4" />
-                     </button>
-                     {showContextSelector && (
-                       <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] md:left-auto md:right-0 divide-y divide-outline-variant/10">
-                         {CONTEXTS.slice(1).map((ctx) => {
-                           const Icon = ctx.icon
-                           return (
-                        <button
-                          key={ctx.value}
-                          onClick={() => {
-                            if (!ctx.locked) {
-                              setContext(ctx.value)
-                              setShowContextSelector(false)
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#e6e8ea] transition-colors flex items-center gap-2 ${
-                            ctx.locked
-                              ? "text-[#1A56DB] border-2 border-[#1A56DB] bg-transparent cursor-not-allowed"
-                              : context === ctx.value
-                              ? "text-[#ffffff] bg-[#1A56DB] font-bold"
-                              : "text-[#191c1e]"
-                          }`}
-                          disabled={!!ctx.locked}
-                        >
-                               <Icon className="w-4 h-4" />
-                               <span className="truncate">{ctx.label}</span>
-                               {ctx.locked && <Lock className="w-3 h-3 ml-auto flex-shrink-0 text-outline" />}
-                               {ctx.locked && <span className="text-[10px] text-outline">PRO</span>}
-                             </button>
-                           )
-                         })}
-                       </div>
-                     )}
-                   </div>
-                   <p className="text-xs text-on-surface-variant px-1">
-                     {CONTEXTS.find((c) => c.value === context)?.desc}
-                   </p>
-                 </div>
-               </div>
-              <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                <div className="flex flex-col sm:flex-row gap-3 w-full">
-                  {/* Level Selector */}
-                  <div className="relative flex-1">
-                    <button
-                      onClick={() => setShowLevelSelector(!showLevelSelector)}
-                      disabled={generating}
-                      className="w-full flex items-center justify-between gap-2 bg-secondary text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-secondary/30 hover:scale-105 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                    >
-                      <span>Nivel {level}</span>
-                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                    </button>
-                    {showLevelSelector && (
-                      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] divide-y divide-outline-variant/10">
-                         {CEFR_LEVELS.map((l) => (
-                           <button
-                             key={l.value}
-                             onClick={() => {
-                               setLevel(l.value)
-                               setShowLevelSelector(false)
-                             }}
-                             className={`w-full text-left px-4 py-3 text-sm hover:bg-[#e6e8ea] transition-colors ${
-                               level === l.value ? "text-[#ffffff] bg-[#1A56DB] font-bold" : "text-[#191c1e]"
-                             }`}
-                           >
-                            <span className="font-semibold">{l.value}</span> <span className="text-on-surface-variant text-[11px] ml-1">— {l.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Context Selector */}
-                  <div className="relative flex-1">
-                    <button
-                      onClick={() => setShowContextSelector(!showContextSelector)}
-                      disabled={generating}
-                      className="w-full flex items-center justify-between gap-2 bg-tertiary-fixed text-on-tertiary px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-tertiary/30 hover:scale-105 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                    >
-                      <span className="truncate">{CONTEXTS.find((c) => c.value === context)?.label || "General"}</span>
-                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                    </button>
-                    {showContextSelector && (
-                      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] md:left-auto md:right-0 divide-y divide-outline-variant/10">
-                        {CONTEXTS.map((ctx) => {
-                          const Icon = ctx.icon
-                          return (
-                             <button
-                               key={ctx.value}
-                               onClick={() => {
-                                 if (!ctx.locked) {
-                                   setContext(ctx.value)
-                                   setShowContextSelector(false)
-                                 }
-                               }}
-                               className={`w-full text-left px-4 py-3 text-sm hover:bg-[#e6e8ea] transition-colors flex items-center gap-2 ${
-                                 ctx.locked
-                                   ? "text-[#1A56DB] border-2 border-[#1A56DB] bg-transparent cursor-not-allowed"
-                                   : context === ctx.value
-                                   ? "text-[#ffffff] bg-[#1A56DB] font-bold"
-                                   : "text-[#191c1e]"
-                               }`}
-                               disabled={!!ctx.locked}
-                             >
-                              <Icon className="w-4 h-4 flex-shrink-0" />
-                              <span className="truncate">{ctx.label}</span>
-                              {ctx.locked && <Lock className="w-4 h-4 ml-auto flex-shrink-0" />}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {generationError && (
-                <p className="mt-3 text-sm text-white/90 bg-white/10 px-4 py-2 rounded-lg">
-                  {generationError}
-                </p>
+          {/* Decks Section */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-foreground">Tus mazos</h2>
+              {decks.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {decks.length} mazo{decks.length !== 1 ? 's' : ''}
+                </span>
               )}
             </div>
-          </div>
-        </section>
 
-        {/* Recent Decks Grid */}
-        <section>
-          <div className="flex justify-between items-end mb-6 md:mb-8">
-            <h3 className="text-xl md:text-2xl font-black text-on-surface tracking-tight">
-              Tus mazos recientes
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-            {/* Deck Cards */}
-            {decks.length > 0 ? (
-              decks.map((deck) => (
-                <DeckCard key={deck.deck_id} deck={deck} />
-              ))
+            {decks.length === 0 ? (
+              <EmptyState />
             ) : (
-              <div className="col-span-full text-center py-12">
-                <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 mx-auto text-on-surface-variant">
-                  <MaterialIcon name="library_books" className="text-3xl" />
-                </div>
-                <h4 className="font-bold text-on-surface mb-2">No tienes mazos aún</h4>
-                <p className="text-sm text-on-surface-variant max-w-[300px] mx-auto">
-                  Genera tu primer mazo pegando un link de YouTube arriba
-                </p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {decks.map((deck) => (
+                  <DeckCard key={deck.deck_id} deck={deck} />
+                ))}
               </div>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
-
-      {/* Floating Monthly Usage Indicator */}
-      <MonthlyUsageIndicator totalCards={stats.cardsCreated} />
-
-      {/* Duplicate Detection Modal */}
-      {duplicateDeck && (
-        <DuplicateDeckModal
-          deck={duplicateDeck}
-          level={level}
-          onClose={() => setDuplicateDeck(null)}
-          onReplace={() => {
-            setDuplicateDeck(null)
-            handleGenerate()
-          }}
-        />
-      )}
     </div>
   )
 }

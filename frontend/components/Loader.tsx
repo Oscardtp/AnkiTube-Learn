@@ -1,15 +1,21 @@
 "use client"
 
 import { FC } from "react"
+import { Loader2 } from "lucide-react"
 
 interface LoaderProps {
   size?: "sm" | "md" | "lg"
-  color?: "primary" | "on-surface" | "custom"
   className?: string
 }
 
-export const Loader: FC<LoaderProps> = ({ color = "on-surface", className = "" }) => {
-  const colorClass = color === "custom" ? "" : `loader-${color}`
+const sizeMap = {
+  sm: "w-4 h-4",
+  md: "w-6 h-6",
+  lg: "w-8 h-8",
+}
 
-  return <div className={`loader loader-md ${colorClass} ${className}`} />
+export const Loader: FC<LoaderProps> = ({ size = "md", className = "" }) => {
+  return (
+    <Loader2 className={`${sizeMap[size]} text-primary animate-spin ${className}`} />
+  )
 }
