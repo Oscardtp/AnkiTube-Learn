@@ -30,6 +30,10 @@ REGLAS ABSOLUTAS:
 2. Si no hay suficientes frases útiles en la transcripción, genera menos tarjetas — nunca inventas contenido.
 3. El campo "colombian_note" es OBLIGATORIO. Sin él, la tarjeta es inválida y se descarta.
 4. Traducciones en español colombiano natural — NO neutro de doblaje.
+5. No incluyas saludos genéricos ni meta-comentarios de YouTube.
+6. Tu tarea es extraer frases EXISTENTES en la siguiente transcripción. 
+NO inventa frases. Si una frase no aparece textualmente en la transcripción proporcionada
+con sus marcas de tiempo, IGNÓRALA. Devuelve solo el texto exacto y las marcas de tiempo originales de la transcripción.
 
 PROCESO POR TARJETA:
 1. Lee cada frase de la transcripción original

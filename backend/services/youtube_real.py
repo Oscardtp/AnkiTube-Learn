@@ -41,14 +41,6 @@ def get_transcript(youtube_url: str, context: str = "general") -> dict:
     """
     video_id = extract_video_id(youtube_url)
 
-    # BPO context: keep mock behavior for demo purposes
-    if context == "bpo":
-        from services.youtube_mock import MOCK_TRANSCRIPTS
-        mock = MOCK_TRANSCRIPTS["bpo"].copy()
-        if video_id:
-            mock["video_id"] = video_id
-        return mock
-
     if not video_id:
         logger.error(f"Could not extract video ID from URL: {youtube_url}")
         raise ValueError("URL de YouTube inválida")
