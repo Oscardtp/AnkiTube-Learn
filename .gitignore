@@ -43,7 +43,7 @@ Thumbs.db
 workspace colaborativo/
 
 # Agregadas para garantizar que no se tracken:
-.agents\
-.claude\
-.kilo\\
+.agents/
+.claude/
+.kilo/
 plans/
