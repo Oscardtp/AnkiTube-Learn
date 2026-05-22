@@ -42,15 +42,7 @@ Thumbs.db
 # Workspace colaborativo - no sincronizar con GitHub
 workspace colaborativo/
 
-# Logs
-logs/
-*.log
-
-# Backend env files
-backend/.env
-backend/.env.example
-
-# Planning files - documentation and planning docs
-plans/
-.kilo/plans/
-*.plan.md
+# Agregadas para garantizar que no se tracken:
+.agents\
+.claude\
+.kilo\\
