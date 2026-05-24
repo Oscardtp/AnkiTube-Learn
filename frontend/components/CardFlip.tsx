@@ -203,7 +203,6 @@ export default function CardFlip({
             className="absolute inset-0 w-full bg-surface-container-lowest rounded-3xl p-6 md:p-8 shadow-elevated"
             style={{
               backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
             }}
           >
             {/* Header */}
