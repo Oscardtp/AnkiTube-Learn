@@ -16,10 +16,12 @@ dist/
 node_modules/
 .next/
 out/
+.vercel/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Environment variables - NUNCA subir al repo
 .env
@@ -42,8 +44,32 @@ Thumbs.db
 # Workspace colaborativo - no sincronizar con GitHub
 workspace colaborativo/
 
-# Agregadas para garantizar que no se tracken:
-.agents/
-.claude/
-.kilo/
+# Logs
+logs/
+*.log
+
+# Backend env files
+backend/.env
+backend/.env.example
+
+# Planning files
 plans/
+.kilo/plans/
+*.plan.md
+
+# AI Agent Tools - NO TRACK
+.antigravitycli/
+.claude/
+.mcp.json
+.agents/
+frontend/.agents/
+frontend/skills-lock.json
+
+# Build artifacts
+frontend/.next/
+frontend/out/
+frontend/dist/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
