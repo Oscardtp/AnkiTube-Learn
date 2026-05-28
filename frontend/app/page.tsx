@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   Play,
   Sparkles,
@@ -42,11 +41,16 @@ const CONTEXTS = [
   { value: "gaming", label: "Gaming", icon: Gamepad2, desc: "Vocabulario de videojuegos" },
 ]
 
-const PROGRESS_STEPS = [
-  { id: 1, label: "Extrayendo transcripción..." },
-  { id: 2, label: "Analizando frases clave..." },
-  { id: 3, label: "Generando tarjetas..." },
-]
+type LandingGenStatus = "idle" | "extracting" | "analyzing" | "generating" | "completed" | "error"
+
+const STATUS_MESSAGES: Record<LandingGenStatus, string> = {
+  idle: "",
+  extracting: "Buscando ese video...",
+  analyzing: "Analizando el contenido...",
+  generating: "Armando tu mazo con IA...",
+  completed: "Listo, tu mazo quedó brutal",
+  error: "Uy, algo falló",
+}
 
 const PROBLEMS = [
   { icon: History, text: "Ves horas de YouTube en inglés pero al día siguiente no recuerdas nada." },
@@ -85,16 +89,27 @@ const FAQS = [
 ]
 
 export default function LandingPage() {
-  const router = useRouter()
   const [url, setUrl] = useState("")
   const [level, setLevel] = useState("B1")
   const [context, setContext] = useState("general")
   const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(0)
+  const [genStatus, setGenStatus] = useState<LandingGenStatus>("idle")
   const [error, setError] = useState("")
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [generatedDeckId, setGeneratedDeckId] = useState<string | null>(null)
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isValidUrl = url.includes("youtube.com/watch") || url.includes("youtu.be/")
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    }
+  }, [])
+
+  function advanceLandingStatus(to: LandingGenStatus, delay: number) {
+    statusTimerRef.current = setTimeout(() => setGenStatus(to), delay)
+  }
 
   async function handleGenerate() {
     if (!url.trim()) {
@@ -102,23 +117,17 @@ export default function LandingPage() {
       return
     }
     if (!isValidUrl) {
-      setError("Esa URL no parece ser de YouTube. Verifica que empiece con youtube.com/watch o youtu.be/")
+      setError("Esa URL no parece ser de YouTube, parce")
       return
     }
 
     setError("")
     setLoading(true)
-    setCurrentStep(1)
+    setGenStatus("extracting")
+    setGeneratedDeckId(null)
 
-    const stepTimer = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev >= 3) {
-          clearInterval(stepTimer)
-          return prev
-        }
-        return prev + 1
-      })
-    }, 1800)
+    advanceLandingStatus("analyzing", 2000)
+    advanceLandingStatus("generating", 4500)
 
     try {
       const data = await api.generateDeck({
@@ -127,15 +136,25 @@ export default function LandingPage() {
         context,
       })
 
-      clearInterval(stepTimer)
-      router.push(`/preview/${data.deck_id}`)
-    } catch (err: unknown) {
-      clearInterval(stepTimer)
-      const error = err as { message?: string }
-      setError(error.message || "Algo salió mal. Intenta de nuevo.")
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+      setGenStatus("completed")
+      setGeneratedDeckId(data.deck_id)
       setLoading(false)
-      setCurrentStep(0)
+    } catch (err: unknown) {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+      const error = err as { message?: string }
+      setGenStatus("error")
+      setError(error.message || "Uy, algo falló. Intenta de nuevo.")
+      setLoading(false)
     }
+  }
+
+  function handleResetLanding() {
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    setGenStatus("idle")
+    setGeneratedDeckId(null)
+    setUrl("")
+    setError("")
   }
 
   return (
@@ -327,57 +346,88 @@ export default function LandingPage() {
               </div>
 
               {/* Progress */}
-              {loading && (
+              {(genStatus === "extracting" || genStatus === "analyzing" || genStatus === "generating") && (
                 <div className="mb-6 p-5 bg-primary-container/20 rounded-xl border border-primary/20">
                   <div className="flex items-center gap-3 mb-3">
                     <Loader2 className="w-5 h-5 text-primary animate-spin" />
                     <span className="text-sm font-semibold text-on-surface">
-                      {PROGRESS_STEPS[currentStep - 1]?.label || "Procesando..."}
+                      {STATUS_MESSAGES[genStatus]}
                     </span>
                   </div>
                   <div className="w-full bg-surface-container rounded-full h-2.5">
                     <div
                       className="bg-gradient-to-r from-primary to-primary-container h-2.5 rounded-full transition-all duration-700"
-                      style={{ width: `${(currentStep / 3) * 100}%` }}
+                      style={{ width: `${genStatus === "extracting" ? 33 : genStatus === "analyzing" ? 66 : 90}%` }}
                     />
                   </div>
                   <div className="flex justify-between mt-3">
-                    {PROGRESS_STEPS.map((step) => (
-                      <span
-                        key={step.id}
-                        className={`text-xs transition-colors ${
-                          currentStep >= step.id ? "text-primary font-medium" : "text-outline"
-                        }`}
-                      >
-                        {step.id === 1 ? "Extrayendo" : step.id === 2 ? "Analizando" : "Generando"}
-                      </span>
-                    ))}
+                    {(["extracting", "analyzing", "generating"] as const).map((step, i) => {
+                      const statusOrder: readonly string[] = ["extracting", "analyzing", "generating"]
+                      const currentIdx = statusOrder.indexOf(genStatus)
+                      return (
+                        <span
+                          key={step}
+                          className={`text-xs transition-colors ${
+                            i <= currentIdx ? "text-primary font-medium" : "text-outline"
+                          }`}
+                        >
+                          {step === "extracting" ? "Extrayendo" : step === "analyzing" ? "Analizando" : "Generando"}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Completed State */}
+              {genStatus === "completed" && generatedDeckId && (
+                <div className="mb-6 p-5 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <p className="text-sm font-bold text-emerald-800 mb-1">Quedó brutal</p>
+                  <p className="text-xs text-emerald-700 mb-4">Tu mazo está listo para estudiar.</p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Link
+                      href={`/preview/${generatedDeckId}`}
+                      className="inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-full font-bold text-sm hover:opacity-90 transition-all"
+                    >
+                      Ver mazo
+                    </Link>
+                    <button
+                      onClick={handleResetLanding}
+                      className="inline-flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-6 py-3 rounded-full font-bold text-sm hover:bg-surface-container-highest transition-all"
+                    >
+                      Generar otro
+                    </button>
                   </div>
                 </div>
               )}
 
               {/* CTA */}
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-full font-bold text-base transition-all duration-200 ${
-                  loading
-                    ? "bg-surface-variant text-on-surface-variant cursor-not-allowed"
-                    : "bg-gradient-to-r from-primary to-primary-container text-white shadow-lg shadow-primary/30 hover:opacity-90 hover:shadow-xl active:scale-[0.98]"
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Generando tu mazo...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Generar mazo gratis
-                  </>
-                )}
-              </button>
+              {genStatus !== "completed" && (
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-full font-bold text-base transition-all duration-200 ${
+                    loading
+                      ? "bg-surface-variant text-on-surface-variant cursor-not-allowed"
+                      : "bg-gradient-to-r from-primary to-primary-container text-white shadow-lg shadow-primary/30 hover:opacity-90 hover:shadow-xl active:scale-[0.98]"
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {STATUS_MESSAGES[genStatus] || "Generando tu mazo..."}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Generar mazo gratis
+                    </>
+                  )}
+                </button>
+              )}
 
               <p className="text-center text-xs text-on-surface-variant mt-4">
                 Sin tarjeta de crédito · Sin registro · 1 mazo gratis por día

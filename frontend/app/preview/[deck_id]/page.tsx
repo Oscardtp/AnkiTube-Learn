@@ -127,11 +127,11 @@ export default function PreviewPage() {
               {error?.message || "No se pudo cargar el mazo"}
             </p>
             <button
-              onClick={() => router.push("/generate")}
+              onClick={() => isAuthenticated ? router.push("/dashboard") : router.push("/")}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
             >
               <ChevronLeft className="w-4 h-4" />
-              Volver a generar
+              {isAuthenticated ? "Volver al dashboard" : "Ir al inicio"}
             </button>
           </div>
         </div>
@@ -164,6 +164,7 @@ export default function PreviewPage() {
             onDownload={handleDownload}
             onStudy={handleStudy}
             selectedCount={0}
+            isAuthenticated={isAuthenticated}
           />
         </div>
       </div>

@@ -26,11 +26,11 @@ export default function PreviewNavbar({ isAuthenticated, customName }: PreviewNa
     <nav className="sticky top-0 z-40 bg-surface/80 backdrop-blur-lg border-b border-outline-variant/30">
       <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
         <button
-          onClick={() => router.push("/generate")}
+          onClick={() => isAuthenticated ? router.push("/dashboard") : router.push("/")}
           className="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors text-sm font-medium"
         >
           <ChevronLeft className="w-4 h-4" />
-          Generar otro
+          {isAuthenticated ? "Dashboard" : "Inicio"}
         </button>
 
         <span className="text-base font-bold text-on-surface tracking-tight">

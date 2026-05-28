@@ -7,7 +7,7 @@ import { Home, BookOpen, Sparkles, Settings } from "lucide-react";
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/my-flashcards", label: "My Flashcards", icon: BookOpen },
-  { href: "/generate", label: "Generate", icon: Sparkles },
+  { href: "/dashboard", label: "Dashboard", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -66,7 +66,7 @@ export function SideNavBar() {
       {/* New Collection Button */}
       <div className="mt-auto px-2">
         <Link
-          href="/generate"
+          href="/dashboard"
           className="w-full py-3 px-4 bg-gradient-to-r from-primary to-primary-container text-white rounded-full font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:opacity-90 transition-all active:scale-95"
         >
           <svg
