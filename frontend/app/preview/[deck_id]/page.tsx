@@ -19,7 +19,7 @@ import { api } from "@/lib/api"
 export default function PreviewPage() {
   const params = useParams()
   const router = useRouter()
-  const deckId = params.deck_id as string
+  const deckId = (params?.deck_id as string) ?? ""
 
   const { data: deck, isLoading, error } = useDeck(deckId)
   const [isAuthenticated, setIsAuthenticated] = useState(false)

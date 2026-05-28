@@ -1,82 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useCallback, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import MinimalNavbar from "@/components/MinimalNavbar"
-import { Loader } from "@/components/Loader"
 import { DuplicateDeckModal } from "@/components/DuplicateDeckModal"
-import { useNotifications } from "@/context/NotificationContext"
-import { api } from "@/lib/api"
-import {
-  ChevronDown,
-  Briefcase,
-  Plane,
-  Gamepad2,
-  GraduationCap,
-  Lock,
-} from "lucide-react"
-
-// CEFR Levels
-const CEFR_LEVELS = [
-  { value: "A1", label: "A1 — Principiante", desc: "Saludos, números, colores" },
-  { value: "A2", label: "A2 — Básico", desc: "Situaciones simples del día a día" },
-  { value: "B1", label: "B1 — Intermedio", desc: "Entiendo series con subtítulos" },
-  { value: "B2", label: "B2 — Intermedio-alto", desc: "Películas sin subtítulos" },
-  { value: "C1", label: "C1 — Avanzado", desc: "Uso flexible y profesional" },
-  { value: "C2", label: "C2 — Maestría", desc: "Dominio casi nativo" },
-]
-
-// Context options
-const CONTEXTS = [
-  { value: "general", label: "General", icon: GraduationCap, desc: "Mezcla equilibrada" },
-  { value: "work", label: "Trabajo", icon: Briefcase, desc: "Oficina y llamadas", locked: true },
-  { value: "travel", label: "Viajes", icon: Plane, desc: "Aeropuertos y hoteles", locked: true },
-  { value: "gaming", label: "Gaming", icon: Gamepad2, desc: "Videojuegos en inglés", locked: true },
-]
-
-// Types
-interface User {
-  id: string
-  email: string
-  role: string
-  created_at?: string
-  decks_generated_today?: number
-  total_decks?: number
-  total_cards?: number
-  level?: string
-  name?: string
-}
-
-interface UserStats {
-  cardsCreated: number
-  studyStreak: number
-  decksGenerated: number
-}
-
-interface Deck {
-  deck_id: string
-  video_title: string
-  video_thumbnail: string
-  video_id: string
-  level: string
-  context: string
-  total_cards: number
-  model_used: string
-  created_at: string
-}
-
-// Material Symbols Icon Component
-function MaterialIcon({ name, filled = false, className = "" }: { name: string; filled?: boolean; className?: string }) {
-  return (
-    <span
-      className={`material-symbols-outlined ${filled ? "material-symbols-filled" : ""} ${className}`}
-      style={{ fontVariationSettings: filled ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" : undefined }}
-    >
-      {name}
-    </span>
-  )
-}
+import MaterialIcon from "@/components/MaterialIcon"
+import { useDashboardData } from "@/features/dashboard/hooks/useDashboardData"
+import { useDeckFilters } from "@/features/dashboard/hooks/useDeckFilters"
+import { DashboardHeader } from "@/features/dashboard/components/DashboardHeader"
+import { StatsGrid } from "@/features/dashboard/components/StatsGrid"
+import { GeneratorSection } from "@/features/dashboard/components/GeneratorSection"
+import { DeckFilters } from "@/features/dashboard/components/DeckFilters"
+import { DeckList } from "@/features/dashboard/components/DeckList"
+import type { Deck } from "@/features/dashboard/types"
 
 interface NavItem {
   href: string
@@ -86,8 +23,7 @@ interface NavItem {
   placeholder?: boolean
 }
 
-// SideNavBar Component
-function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | null }) {
+function SideNavBar({ onLogout, userName }: { onLogout: () => void; userName?: string }) {
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel de Control", icon: "dashboard", active: true },
     { href: "/settings", label: "Configuración", icon: "settings", active: false },
@@ -99,19 +35,17 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
 
   return (
     <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest flex-col py-6 px-4 z-50 border-r border-outline-variant/20">
-      {/* Logo */}
       <div className="mb-10 px-2">
         <Link href="/">
           <h1 className="text-2xl font-black text-primary tracking-tighter hover:opacity-80 transition-opacity">AnkiTube Learn</h1>
         </Link>
-        {user?.level && (
+        {userName && (
           <p className="text-xs font-medium text-on-surface-variant mt-1">
-            Nivel {user.level}
+            Nivel {userName}
           </p>
         )}
       </div>
 
-      {/* Main Navigation */}
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
           <Link
@@ -135,7 +69,6 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
         ))}
       </nav>
 
-      {/* Bottom Navigation */}
       <div className="mt-auto space-y-1 pt-6 border-t border-outline-variant/20">
         <Link
           href="/"
@@ -162,7 +95,6 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
             )}
           </Link>
         ))}
-        {/* Logout Button */}
         <button
           onClick={onLogout}
           className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left text-on-surface-variant hover:text-error hover:bg-surface-container"
@@ -175,256 +107,27 @@ function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | nul
   )
 }
 
-// Stats Card Component
-function StatsCard({ icon, label, value, iconBg, iconColor }: { icon: string; label: string; value: string; iconBg: string; iconColor: string }) {
-  return (
-    <div className="bg-surface-container-lowest p-6 rounded-xl shadow-card border border-outline-variant/10 flex items-center gap-5 transition-transform hover:-translate-y-1 duration-300">
-      <div className={`w-12 h-12 rounded-2xl ${iconBg} flex items-center justify-center ${iconColor}`}>
-        <MaterialIcon name={icon} className="text-2xl" />
-      </div>
-      <div>
-        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-black text-on-surface">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-// Deck Card Component
-function DeckCard({ deck }: { deck: Deck }) {
-  return (
-    <div className="group bg-surface-container-lowest rounded-3xl overflow-hidden shadow-card border border-outline-variant/10 transition-all hover:shadow-elevated hover:shadow-primary/5">
-      {/* Thumbnail */}
-      <div className="aspect-video relative overflow-hidden">
-        <img
-          src={deck.video_thumbnail}
-          alt={`Miniatura de ${deck.video_title}`}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-4 left-4 flex items-center gap-2">
-          <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md">{deck.total_cards} tarjetas</span>
-          <span className="bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-tighter">{deck.level}</span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <h4 className="text-lg font-bold text-on-surface leading-snug mb-4 group-hover:text-primary transition-colors line-clamp-2">
-          {deck.video_title}
-        </h4>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-on-surface-variant text-xs">
-            <MaterialIcon name="event" className="text-sm" />
-            <span>{new Date(deck.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</span>
-          </div>
-          <div className="flex items-center gap-2 text-on-surface-variant font-bold text-xs">
-            <MaterialIcon name="auto_stories" className="text-sm" />
-            <span>{deck.total_cards} tarjetas</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href={`/preview/${deck.deck_id}`}
-            className="bg-primary text-white py-2.5 rounded-xl font-bold text-sm shadow-md hover:bg-primary-container transition-all flex items-center justify-center gap-2"
-          >
-            <MaterialIcon name="play_arrow" filled className="text-sm" />
-            Ver mazo
-          </Link>
-          <button className="bg-surface-container-high text-on-surface py-2.5 rounded-xl font-bold text-sm hover:bg-surface-container-highest transition-all flex items-center justify-center gap-2">
-            <MaterialIcon name="download" className="text-sm" />
-            Exportar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Monthly Usage Indicator Component
-function MonthlyUsageIndicator({ totalCards }: { totalCards: number }) {
-  const maxCards = 1000
-  const percentage = Math.min((totalCards / maxCards) * 100, 100)
-  
-  return (
-    <div className="fixed bottom-6 right-6 z-40 hidden lg:block">
-      <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-elevated border border-outline-variant/10 w-56">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-wider">Uso del mes</span>
-          <span className="text-xs font-bold text-primary">{percentage.toFixed(0)}%</span>
-        </div>
-        <div className="h-1.5 w-full bg-surface-container-highest rounded-full mb-2 overflow-hidden">
-          <div
-            className="h-full bg-secondary rounded-full"
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-        <div className="flex justify-between items-center">
-          <p className="text-[10px] font-medium text-on-surface-variant">
-            <span className="text-on-surface font-bold">{totalCards}</span> / {maxCards} tarjetas
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const router = useRouter()
-  const { error: notifyError, loading: notifyLoading, success, clearAll } = useNotifications()
-  const [urlInput, setUrlInput] = useState("")
-  const [level, setLevel] = useState("B1")
-  const [context, setContext] = useState("general")
-  const [showLevelSelector, setShowLevelSelector] = useState(false)
-  const [showContextSelector, setShowContextSelector] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
-  const [stats, setStats] = useState<UserStats>({
-    cardsCreated: 0,
-    studyStreak: 0,
-    decksGenerated: 0
-  })
-  const [decks, setDecks] = useState<Deck[]>([])
-  const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
-  const [generationError, setGenerationError] = useState("")
-  const [generationStep, setGenerationStep] = useState(0)
+  const { user, decks, stats, isLoading } = useDashboardData()
+  const { level, setLevel, timeFilter, setTimeFilter, sortBy, setSortBy, filteredDecks } = useDeckFilters(decks)
   const [duplicateDeck, setDuplicateDeck] = useState<Deck | null>(null)
 
-  useEffect(() => {
-    async function loadUserData() {
-      try {
-        const token = localStorage.getItem("token")
-        if (!token) {
-          router.push("/login")
-          return
-        }
-
-        // Cargar usuario desde backend
-        try {
-          const userData = await api.getCurrentUser()
-          setUser({
-            ...userData,
-            decks_generated_today: userData.generations_today,
-            name: userData.custom_name || userData.email?.split("@")[0] || "Usuario"
-          })
-          setStats({
-            cardsCreated: userData.total_cards || 0,
-            studyStreak: 0,
-            decksGenerated: userData.total_decks || 0
-          })
-          localStorage.setItem("user", JSON.stringify(userData))
-        } catch (err: unknown) {
-          const error = err as { status?: number }
-          if (error.status === 401) {
-            localStorage.removeItem("token")
-            localStorage.removeItem("user")
-            router.push("/login")
-            return
-          }
-          console.error("Error loading user:", err)
-        }
-
-        // Cargar decks del usuario
-        if (token) {
-          try {
-            const decksData = await api.getMyDecks()
-            setDecks(decksData.decks)
-          } catch (deckError) {
-            console.error("Error loading decks:", deckError)
-          }
-        }
-      } catch (error) {
-        console.error("Error loading user data:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadUserData()
-  }, [router])
-
-  function handleLogout() {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     router.push("/login")
-  }
+  }, [router])
 
-  async function handleGenerate() {
-    if (!urlInput.trim()) return
+  const handleDuplicateDetected = useCallback((deck: Deck) => {
+    setDuplicateDeck(deck)
+  }, [])
 
-    const isValidUrl = urlInput.includes("youtube.com/watch") || urlInput.includes("youtu.be/")
-    if (!isValidUrl) {
-      setGenerationError("Esa URL no parece ser de YouTube")
-      return
-    }
-
-    let videoId = ""
-    if (urlInput.includes("youtube.com/watch")) {
-      const url = new URL(urlInput)
-      videoId = url.searchParams.get("v") || ""
-    } else if (urlInput.includes("youtu.be/")) {
-      const url = new URL(urlInput)
-      videoId = url.pathname.slice(1)
-    }
-
-    if (!videoId) {
-      setGenerationError("No se pudo extraer el ID del video")
-      return
-    }
-
-    // Duplicate check
-    const existingDeck = decks.find((d) => {
-      const existingVideoId = d.video_id || ""
-      return existingVideoId === videoId && d.level === level
-    })
-
-    if (existingDeck) {
-      setDuplicateDeck(existingDeck)
-      setGenerating(false)
-      setGenerationStep(0)
-      return
-    }
-
-    setGenerationError("")
-    setGenerating(true)
-    setGenerationStep(1)
-    notifyLoading("Generando mazo, por favor espera...")
-
-    const stepTimer = setInterval(() => {
-      setGenerationStep((prev) => {
-        if (prev >= 3) {
-          clearInterval(stepTimer)
-          return prev
-        }
-        return prev + 1
-      })
-    }, 1800)
-
-    try {
-      const data = await api.generateDeck({
-        youtube_url: urlInput,
-        level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
-        context,
-      })
-
-      clearInterval(stepTimer)
-      success("¡Mazo generado exitosamente!")
-      router.push(`/preview/${data.deck_id}`)
-    } catch (err: unknown) {
-      clearInterval(stepTimer)
-      const message = err instanceof Error ? err.message : "Algo salió mal"
-      setGenerationError(message)
-      notifyError(message)
-      setGenerating(false)
-      setGenerationStep(0)
-    }
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-6">
-        <Loader size="lg" color="primary" />
-        <p className="text-on-surface-variant font-medium">Cargando tu dashboard...</p>
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-on-surface-variant font-medium text-sm">Cargando tu dashboard...</p>
       </div>
     )
   }
@@ -432,365 +135,33 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-surface">
       <MinimalNavbar />
-      <SideNavBar onLogout={handleLogout} user={user} />
+      <SideNavBar onLogout={handleLogout} userName={user?.level} />
 
-      {/* Main Content */}
       <main className="md:ml-64 flex-1 p-6 md:p-8 lg:p-12 max-w-[1600px]">
-        {/* TopAppBar */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 md:mb-12">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-on-surface tracking-tight">
-              ¡Hola de nuevo, {user?.name || user?.email?.split("@")[0] || "Usuario"}!
-            </h2>
-            <p className="text-on-surface-variant font-medium mt-1 text-sm md:text-base">
-              ¿Listo para otro video? Tu progreso hoy va volando.
-            </p>
-          </div>
-           <div className="flex items-center gap-4">
-            {/* Notifications */}
-            <div className="relative">
-              <button className="p-2 rounded-full hover:bg-surface-container-high transition-colors" title="Notificaciones">
-                <MaterialIcon name="notifications" className="text-on-surface-variant text-2xl" />
-              </button>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-surface" />
-            </div>
-            {/* User Info */}
-            <div className="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-on-surface">{user?.email || "Usuario"}</p>
-                <p className="text-xs text-on-surface-variant">{user?.role || "Estudiante"}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-                <span className="text-lg font-bold text-primary">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </header>
+        <DashboardHeader user={user} onLogout={handleLogout} />
+        <StatsGrid stats={stats} generationsToday={user?.decks_generated_today || 0} />
+        <GeneratorSection decks={decks} onDuplicateDetected={handleDuplicateDetected} />
 
-        {/* Stats Bento Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
-          <StatsCard
-            icon="style"
-            label="Tarjetas creadas"
-            value={stats.cardsCreated.toLocaleString()}
-            iconBg="bg-primary/10"
-            iconColor="text-primary"
-          />
-          <StatsCard
-            icon="local_fire_department"
-            label="Racha de estudio"
-            value={`${stats.studyStreak} días`}
-            iconBg="bg-secondary/10"
-            iconColor="text-secondary"
-          />
-          <StatsCard
-            icon="auto_stories"
-            label="Mazos generados"
-            value={stats.decksGenerated.toString()}
-            iconBg="bg-tertiary-fixed"
-            iconColor="text-tertiary"
-          />
-          <StatsCard
-            icon="bolt"
-            label="Generaciones hoy"
-            value={(user?.decks_generated_today || 0).toString()}
-            iconBg="bg-warning/10"
-            iconColor="text-warning"
-          />
-        </div>
-
-        {/* Generator Section */}
-        <section className="mb-8 md:mb-16">
-          <div className="bg-primary rounded-[2rem] p-6 md:p-8 lg:p-12 relative overflow-hidden shadow-2xl shadow-primary/20">
-            {/* Abstract Background Patterns */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-container/30 rounded-full -ml-10 -mb-10 blur-2xl" />
-
-            <div className="relative z-10 max-w-2xl">
-              <h3 className="text-white text-2xl md:text-3xl font-extrabold mb-4 leading-tight">
-                Generar nuevo mazo
-              </h3>
-              <p className="text-primary-container brightness-150 font-medium mb-6 md:mb-8 text-base md:text-lg">
-                Pega el link y yo me encargo del resto. ¡Hágale pues!
-              </p>
-
-              {/* Progress Steps */}
-              {generating && (
-                <div className="mb-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span className="text-white font-semibold text-sm">
-                      {generationStep === 1 ? "Extrayendo" : generationStep === 2 ? "Analizando" : "Generando"}...
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3].map((step) => (
-                      <div key={step} className="flex items-center gap-2">
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full transition-all ${
-                            generationStep > step ? "bg-white" : generationStep === step ? "bg-white scale-125" : "bg-white/30"
-                          }`}
-                        />
-                        {step < 3 && (
-                          <div className={`w-6 h-0.5 rounded ${generationStep > step ? "bg-white" : "bg-white/20"}`} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* URL Input */}
-              <div className="mb-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <MaterialIcon name="link" className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/60 text-xl" />
-                    <input
-                      type="text"
-                      value={urlInput}
-                      onChange={(e) => {
-                        setUrlInput(e.target.value)
-                        setGenerationError("")
-                      }}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-none focus:ring-4 focus:ring-primary-container/50 text-on-surface font-medium placeholder:text-slate-400 shadow-lg"
-                      onKeyDown={(e) => e.key === "Enter" && !generating && handleGenerate()}
-                      disabled={generating}
-                    />
-                  </div>
-                  <button
-                    onClick={handleGenerate}
-                    disabled={generating || !urlInput.trim()}
-                    className="bg-secondary text-white px-8 md:px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  >
-                    {generating ? (
-                      <>
-                        <span>Generando...</span>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      </>
-                    ) : (
-                      <>
-                        <span>Generar</span>
-                        <MaterialIcon name="bolt" filled className="text-xl" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-               {/* Level and Context Selectors - Grid Layout */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                 {/* Level Selector */}
-                 <div className="space-y-3 text-left">
-                   <label className="text-sm font-bold text-on-surface ml-1">¿Qué nivel tenés hoy?</label>
-                    <div className="flex flex-wrap gap-2">
-                      {CEFR_LEVELS.map((l) => (
-                        <button
-                          key={l.value}
-                          onClick={() => setLevel(l.value)}
-                          disabled={generating}
-                          className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
-                            level === l.value
-                              ? "bg-[#1A56DB] text-[#ffffff] shadow-[#1A56DB]/20"
-                              : "bg-[#e6e8ea] text-[#191c1e] hover:bg-[#d1d5db]"
-                          } disabled:opacity-50 disabled:hover:scale-100`}
-                        >
-                          {l.value}
-                        </button>
-                      ))}
-                    </div>
-                   <p className="text-xs text-on-surface-variant px-1">
-                     {CEFR_LEVELS.find((l) => l.value === level)?.desc}
-                   </p>
-                 </div>
-
-                 {/* Context Selector */}
-                 <div className="space-y-3 text-left">
-                   <label className="text-sm font-bold text-on-surface ml-1">¿Para qué necesitás el inglés?</label>
-                   <div className="flex flex-wrap gap-3">
-                      {CONTEXTS.slice(0, 1).map((ctx) => {
-                        const Icon = ctx.icon
-                        return (
-                          <button
-                            key={ctx.value}
-                            onClick={() => !ctx.locked && setContext(ctx.value)}
-                            disabled={generating || ctx.locked}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all ${
-                              context === ctx.value
-                                ? "bg-[#1A56DB] text-[#ffffff] shadow-[#1A56DB]/20"
-                                : "bg-[#e6e8ea] text-[#191c1e] hover:bg-[#d1d5db]"
-                            } disabled:opacity-50 disabled:hover:scale-100`}
-                          >
-                            <Icon className="w-4 h-4" />
-                            <span>{ctx.label}</span>
-                          </button>
-                        )
-                      })}
-                     <button
-                       onClick={() => setShowContextSelector(!showContextSelector)}
-                       disabled={generating}
-                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-surface-container-high text-on-surface hover:bg-surface-container-highest shadow-lg transition-all disabled:opacity-50"
-                     >
-                       <span>{CONTEXTS.find((c) => c.value === context)?.label || "General"}</span>
-                       <ChevronDown className="w-4 h-4" />
-                     </button>
-                     {showContextSelector && (
-                       <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] md:left-auto md:right-0 divide-y divide-outline-variant/10">
-                         {CONTEXTS.slice(1).map((ctx) => {
-                           const Icon = ctx.icon
-                           return (
-                        <button
-                          key={ctx.value}
-                          onClick={() => {
-                            if (!ctx.locked) {
-                              setContext(ctx.value)
-                              setShowContextSelector(false)
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#e6e8ea] transition-colors flex items-center gap-2 ${
-                            ctx.locked
-                              ? "text-[#1A56DB] border-2 border-[#1A56DB] bg-transparent cursor-not-allowed"
-                              : context === ctx.value
-                              ? "text-[#ffffff] bg-[#1A56DB] font-bold"
-                              : "text-[#191c1e]"
-                          }`}
-                          disabled={!!ctx.locked}
-                        >
-                               <Icon className="w-4 h-4" />
-                               <span className="truncate">{ctx.label}</span>
-                               {ctx.locked && <Lock className="w-3 h-3 ml-auto flex-shrink-0 text-outline" />}
-                               {ctx.locked && <span className="text-[10px] text-outline">PRO</span>}
-                             </button>
-                           )
-                         })}
-                       </div>
-                     )}
-                   </div>
-                   <p className="text-xs text-on-surface-variant px-1">
-                     {CONTEXTS.find((c) => c.value === context)?.desc}
-                   </p>
-                 </div>
-               </div>
-              <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                <div className="flex flex-col sm:flex-row gap-3 w-full">
-                  {/* Level Selector */}
-                  <div className="relative flex-1">
-                    <button
-                      onClick={() => setShowLevelSelector(!showLevelSelector)}
-                      disabled={generating}
-                      className="w-full flex items-center justify-between gap-2 bg-secondary text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-secondary/30 hover:scale-105 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                    >
-                      <span>Nivel {level}</span>
-                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                    </button>
-                    {showLevelSelector && (
-                      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] divide-y divide-outline-variant/10">
-                         {CEFR_LEVELS.map((l) => (
-                           <button
-                             key={l.value}
-                             onClick={() => {
-                               setLevel(l.value)
-                               setShowLevelSelector(false)
-                             }}
-                             className={`w-full text-left px-4 py-3 text-sm hover:bg-[#e6e8ea] transition-colors ${
-                               level === l.value ? "text-[#ffffff] bg-[#1A56DB] font-bold" : "text-[#191c1e]"
-                             }`}
-                           >
-                            <span className="font-semibold">{l.value}</span> <span className="text-on-surface-variant text-[11px] ml-1">— {l.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Context Selector */}
-                  <div className="relative flex-1">
-                    <button
-                      onClick={() => setShowContextSelector(!showContextSelector)}
-                      disabled={generating}
-                      className="w-full flex items-center justify-between gap-2 bg-tertiary-fixed text-on-tertiary px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-tertiary/30 hover:scale-105 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                    >
-                      <span className="truncate">{CONTEXTS.find((c) => c.value === context)?.label || "General"}</span>
-                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                    </button>
-                    {showContextSelector && (
-                      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-outline-variant/20 py-2 z-50 min-w-[200px] md:left-auto md:right-0 divide-y divide-outline-variant/10">
-                        {CONTEXTS.map((ctx) => {
-                          const Icon = ctx.icon
-                          return (
-                             <button
-                               key={ctx.value}
-                               onClick={() => {
-                                 if (!ctx.locked) {
-                                   setContext(ctx.value)
-                                   setShowContextSelector(false)
-                                 }
-                               }}
-                               className={`w-full text-left px-4 py-3 text-sm hover:bg-[#e6e8ea] transition-colors flex items-center gap-2 ${
-                                 ctx.locked
-                                   ? "text-[#1A56DB] border-2 border-[#1A56DB] bg-transparent cursor-not-allowed"
-                                   : context === ctx.value
-                                   ? "text-[#ffffff] bg-[#1A56DB] font-bold"
-                                   : "text-[#191c1e]"
-                               }`}
-                               disabled={!!ctx.locked}
-                             >
-                              <Icon className="w-4 h-4 flex-shrink-0" />
-                              <span className="truncate">{ctx.label}</span>
-                              {ctx.locked && <Lock className="w-4 h-4 ml-auto flex-shrink-0" />}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {generationError && (
-                <p className="mt-3 text-sm text-white/90 bg-white/10 px-4 py-2 rounded-lg">
-                  {generationError}
-                </p>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Recent Decks Grid */}
         <section>
-          <div className="flex justify-between items-end mb-6 md:mb-8">
+          <div className="flex justify-between items-end mb-4">
             <h3 className="text-xl md:text-2xl font-black text-on-surface tracking-tight">
-              Tus mazos recientes
+              Tus mazos
             </h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-            {/* Deck Cards */}
-            {decks.length > 0 ? (
-              decks.map((deck) => (
-                <DeckCard key={deck.deck_id} deck={deck} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 mx-auto text-on-surface-variant">
-                  <MaterialIcon name="library_books" className="text-3xl" />
-                </div>
-                <h4 className="font-bold text-on-surface mb-2">No tienes mazos aún</h4>
-                <p className="text-sm text-on-surface-variant max-w-[300px] mx-auto">
-                  Genera tu primer mazo pegando un link de YouTube arriba
-                </p>
-              </div>
-            )}
-          </div>
+          <DeckFilters
+            level={level}
+            onLevelChange={setLevel}
+            timeFilter={timeFilter}
+            onTimeFilterChange={setTimeFilter}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+          />
+
+          <DeckList decks={filteredDecks} />
         </section>
       </main>
 
-      {/* Floating Monthly Usage Indicator */}
-      <MonthlyUsageIndicator totalCards={stats.cardsCreated} />
-
-      {/* Duplicate Detection Modal */}
       {duplicateDeck && (
         <DuplicateDeckModal
           deck={duplicateDeck}
@@ -798,7 +169,6 @@ export default function DashboardPage() {
           onClose={() => setDuplicateDeck(null)}
           onReplace={() => {
             setDuplicateDeck(null)
-            handleGenerate()
           }}
         />
       )}
