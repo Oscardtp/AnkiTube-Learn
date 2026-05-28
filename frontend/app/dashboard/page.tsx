@@ -40,10 +40,10 @@ interface User {
   id: string
   email: string
   role: string
-  created_at: string
-  decks_generated_today: number
-  total_decks: number
-  total_cards: number
+  created_at?: string
+  decks_generated_today?: number
+  total_decks?: number
+  total_cards?: number
   level?: string
   name?: string
 }
@@ -78,14 +78,22 @@ function MaterialIcon({ name, filled = false, className = "" }: { name: string; 
   )
 }
 
+interface NavItem {
+  href: string
+  label: string
+  icon: string
+  active: boolean
+  placeholder?: boolean
+}
+
 // SideNavBar Component
 function SideNavBar({ onLogout, user }: { onLogout: () => void; user: User | null }) {
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel de Control", icon: "dashboard", active: true },
     { href: "/settings", label: "Configuración", icon: "settings", active: false },
   ]
 
-  const bottomItems = [
+  const bottomItems: NavItem[] = [
     { href: "/help", label: "Ayuda", icon: "help", active: false, placeholder: true },
   ]
 
@@ -296,7 +304,8 @@ export default function DashboardPage() {
           const userData = await api.getCurrentUser()
           setUser({
             ...userData,
-            name: userData.name || userData.email?.split("@")[0] || "Usuario"
+            decks_generated_today: userData.generations_today,
+            name: userData.custom_name || userData.email?.split("@")[0] || "Usuario"
           })
           setStats({
             cardsCreated: userData.total_cards || 0,

@@ -24,6 +24,8 @@ interface GenerateResponse {
   video_title: string;
   video_thumbnail: string;
   video_id: string;
+  level: string;
+  context: string;
   cards: Card[];
   model_used: string;
   total_cards: number;

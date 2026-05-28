@@ -38,21 +38,30 @@ interface UserData {
   email: string
   name?: string
   role: string
-  created_at: string
-  decks_generated_today: number
-  total_decks: number
-  total_cards: number
+  created_at?: string
+  decks_generated_today?: number
+  total_decks?: number
+  total_cards?: number
   level?: string
+  custom_name?: string
+}
+
+interface NavItem {
+  href: string
+  label: string
+  icon: string
+  active: boolean
+  placeholder?: boolean
 }
 
 // SideNavBar for Settings
 function SideNavBar({ onLogout }: { onLogout: () => void }) {
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel de Control", icon: "dashboard", active: false },
     { href: "/settings", label: "Configuración", icon: "settings", active: true },
   ]
 
-  const bottomItems = [
+  const bottomItems: NavItem[] = [
     { href: "/help", label: "Ayuda", icon: "help", active: false, placeholder: true },
   ]
 
@@ -142,7 +151,7 @@ export default function SettingsPage() {
         setUser(userData)
         localStorage.setItem("user", JSON.stringify(userData))
         if (userData.level) setSelectedLevel(userData.level)
-        if (userData.name) setName(userData.name)
+        if (userData.custom_name) setName(userData.custom_name)
       } catch (error: unknown) {
         const err = error as { status?: number }
         if (err.status === 401) {
