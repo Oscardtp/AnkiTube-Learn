@@ -77,11 +77,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
   }, [addNotification]);
 
-  const loading = useCallback((message: string, dismissible: boolean = false) => {
+  const loading = useCallback((message: string, _dismissible: boolean = false) => {
     addNotification({
       type: 'loading',
       message,
-      dismissible,
     });
   }, [addNotification]);
 
