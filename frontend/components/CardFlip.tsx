@@ -58,6 +58,106 @@ function getCardTypeIcon(type: string) {
   }
 }
 
+function BackFaceContent({
+  card,
+  TypeIcon,
+  audioSrc,
+  isPlaying,
+  handleAudioClick,
+}: {
+  card: CardData
+  TypeIcon: React.ComponentType<{ className?: string }>
+  audioSrc?: string
+  isPlaying: boolean
+  handleAudioClick: (e: React.MouseEvent) => void
+}) {
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <TypeIcon className="w-4 h-4 text-primary" />
+          <span className="text-xs font-semibold text-primary bg-primary-container/20 px-3 py-1 rounded-full">
+            {getCardTypeLabel(card.card_type)}
+          </span>
+        </div>
+        <span className="text-xs font-medium text-outline">
+          {formatTimestamp(card.timestamp_start)} – {formatTimestamp(card.timestamp_end)}
+        </span>
+      </div>
+
+      {/* Back translation */}
+      <div className="mb-3">
+        <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+          Traducción
+        </span>
+        <p className="text-xl md:text-2xl font-bold text-on-surface leading-tight">
+          {card.back}
+        </p>
+      </div>
+
+      {/* Colombian note */}
+      {card.colombian_note && (
+        <div className="mb-3 p-3 rounded-xl bg-[#0F6E56]/10 border border-[#0F6E56]/20">
+          <span className="text-xs font-bold text-[#0F6E56] uppercase tracking-widest block mb-1" title="Nota colombiana">
+            CO
+          </span>
+          <p className="text-xs font-medium text-[#0F6E56] leading-relaxed">
+            {card.colombian_note}
+          </p>
+        </div>
+      )}
+
+      {/* Grammar note */}
+      {card.grammar_note && (
+        <div className="mb-2">
+          <hr className="border-outline-variant/20 mb-3" />
+          <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+            Gramática
+          </span>
+          <p className="text-xs text-on-surface-variant leading-relaxed">
+            {card.grammar_note}
+          </p>
+        </div>
+      )}
+
+      {/* Context note */}
+      {card.context_note && (
+        <div className="mb-2">
+          <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
+            Contexto
+          </span>
+          <p className="text-xs text-on-surface-variant leading-relaxed">
+            {card.context_note}
+          </p>
+        </div>
+      )}
+
+      {/* Audio player (mini) */}
+      {audioSrc && (
+        <div className="mt-3 flex justify-center">
+          <button
+            onClick={handleAudioClick}
+            title={isPlaying ? "Pausar audio" : "Reproducir audio"}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isPlaying
+                ? "bg-primary text-white shadow-lg shadow-primary/30"
+                : "bg-primary-container/20 text-primary hover:bg-primary-container/40"
+            }`}
+          >
+            <Volume2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Tap hint */}
+      <p className="text-center text-xs text-outline mt-3">
+        Toca para voltear
+      </p>
+    </>
+  )
+}
+
 export default function CardFlip({
   card,
   index,
@@ -74,6 +174,19 @@ export default function CardFlip({
 
   const TypeIcon = getCardTypeIcon(card.card_type)
 
+  const audioSrc = audioBaseUrl && card.audio_filename
+    ? `${audioBaseUrl}/${card.audio_filename}`
+    : undefined
+
+  // Reset state when card changes
+  const prevCardRef = useRef<string>("")
+  if (prevCardRef.current !== card.front) {
+    prevCardRef.current = card.front
+    if (isFlipped) setIsFlipped(false)
+    if (isPlaying) setIsPlaying(false)
+    if (playBeforeFlip) setPlayBeforeFlip(false)
+  }
+
   const handleSelectionClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onToggleSelection) {
@@ -84,7 +197,6 @@ export default function CardFlip({
   const handleFlip = () => {
     setIsFlipped(!isFlipped)
 
-    // If user pressed play before flip, activate audio after flip
     if (!isFlipped && playBeforeFlip && audioRef.current) {
       setTimeout(() => {
         audioRef.current?.play()
@@ -103,7 +215,6 @@ export default function CardFlip({
       setIsPlaying(false)
     } else {
       if (!isFlipped) {
-        // Mark that user wants to play, will activate after flip
         setPlayBeforeFlip(true)
         handleFlip()
       } else {
@@ -116,10 +227,6 @@ export default function CardFlip({
   const handleAudioEnded = () => {
     setIsPlaying(false)
   }
-
-  const audioSrc = audioBaseUrl && card.audio_filename
-    ? `${audioBaseUrl}/${card.audio_filename}`
-    : undefined
 
   return (
     <div className={`w-full max-w-2xl mx-auto ${showSelection && !isSelected ? "opacity-60" : ""}`}>
@@ -142,18 +249,26 @@ export default function CardFlip({
             {isSelected && <Check className="w-4 h-4 text-white" />}
           </button>
         )}
-        {/* Inner card that flips */}
+
+        {/* CSS Grid Overlay: both faces share the same grid cell */}
         <div
-          className="relative w-full transition-transform duration-300 ease-in-out"
           style={{
+            display: "grid",
+            gridTemplateRows: "1fr",
             transformStyle: "preserve-3d",
+            transition: "transform 0.3s ease-in-out",
             transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
           }}
         >
-          {/* Front Face */}
+          {/* Front Face — positioned in grid, visibility toggled */}
           <div
             className="w-full bg-surface-container-lowest rounded-3xl p-6 md:p-8 shadow-elevated"
-            style={{ backfaceVisibility: "hidden" }}
+            style={{
+              gridRow: 1,
+              gridColumn: 1,
+              backfaceVisibility: "hidden",
+              visibility: isFlipped ? "hidden" : "visible",
+            }}
           >
             {/* Header: type + timestamp */}
             <div className="flex items-center justify-between mb-6">
@@ -198,94 +313,23 @@ export default function CardFlip({
             </p>
           </div>
 
-          {/* Back Face */}
+          {/* Back Face — same grid cell, rotates independently */}
           <div
-            className="absolute inset-0 w-full bg-surface-container-lowest rounded-3xl p-6 md:p-8 shadow-elevated"
+            className="w-full bg-surface-container-lowest rounded-3xl p-5 md:p-6 shadow-elevated"
             style={{
+              gridRow: 1,
+              gridColumn: 1,
               backfaceVisibility: "hidden",
               transform: "rotateY(180deg)",
             }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <TypeIcon className="w-4 h-4 text-primary" />
-                <span className="text-xs font-semibold text-primary bg-primary-container/20 px-3 py-1 rounded-full">
-                  {getCardTypeLabel(card.card_type)}
-                </span>
-              </div>
-              <span className="text-xs font-medium text-outline">
-                {formatTimestamp(card.timestamp_start)} – {formatTimestamp(card.timestamp_end)}
-              </span>
-            </div>
-
-            {/* Back translation */}
-            <div className="mb-6">
-              <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-2">
-                Traducción
-              </span>
-              <p className="text-xl md:text-2xl font-bold text-on-surface leading-tight">
-                {card.back}
-              </p>
-            </div>
-
-            {/* Colombian note */}
-            {card.colombian_note && (
-              <div className="mb-4 p-4 rounded-xl bg-[#0F6E56]/10 border border-[#0F6E56]/20">
-                <span className="text-xs font-bold text-[#0F6E56] uppercase tracking-widest block mb-1">
-                  Nota colombiana
-                </span>
-                <p className="text-sm font-medium text-[#0F6E56]">
-                  {card.colombian_note}
-                </p>
-              </div>
-            )}
-
-            {/* Grammar note */}
-            {card.grammar_note && (
-              <div className="mb-4">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
-                  Gramática
-                </span>
-                <p className="text-sm text-on-surface-variant">
-                  {card.grammar_note}
-                </p>
-              </div>
-            )}
-
-            {/* Context note */}
-            {card.context_note && (
-              <div className="mb-4">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-1">
-                  Contexto
-                </span>
-                <p className="text-sm text-on-surface-variant">
-                  {card.context_note}
-                </p>
-              </div>
-            )}
-
-            {/* Audio player (mini) */}
-            {audioSrc && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={handleAudioClick}
-                  title={isPlaying ? "Pausar audio" : "Reproducir audio"}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    isPlaying
-                      ? "bg-primary text-white shadow-lg shadow-primary/30"
-                      : "bg-primary-container/20 text-primary hover:bg-primary-container/40"
-                  }`}
-                >
-                  <Volume2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {/* Tap hint */}
-            <p className="text-center text-xs text-outline mt-4">
-              Toca para voltear
-            </p>
+            <BackFaceContent
+              card={card}
+              TypeIcon={TypeIcon}
+              audioSrc={audioSrc}
+              isPlaying={isPlaying}
+              handleAudioClick={handleAudioClick}
+            />
           </div>
         </div>
       </div>
