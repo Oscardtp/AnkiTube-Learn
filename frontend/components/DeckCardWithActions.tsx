@@ -1,6 +1,6 @@
 "use client"
 
-import { MaterialIcon } from "@/components/MaterialIcon"
+import MaterialIcon from "@/components/MaterialIcon"
 
 // Reuse the DeckCard component from dashboard page and add actions
 type Deck = {
