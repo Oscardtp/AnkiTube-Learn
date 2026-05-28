@@ -8,6 +8,7 @@ interface ActionButtonsProps {
   onDownload: () => void
   onStudy: () => void
   selectedCount: number
+  isAuthenticated: boolean
 }
 
 export default function ActionButtons({
@@ -15,6 +16,7 @@ export default function ActionButtons({
   onDownload,
   onStudy,
   selectedCount,
+  isAuthenticated,
 }: ActionButtonsProps) {
   const router = useRouter()
 
@@ -48,13 +50,15 @@ export default function ActionButtons({
         Estudiar aquí
       </button>
 
-      <button
-        onClick={() => router.push("/generate")}
-        className="w-full sm:w-auto flex items-center justify-center gap-2 text-on-surface-variant font-medium px-6 py-4 rounded-full hover:text-primary transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        Generar otro
-      </button>
+      {isAuthenticated && (
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 text-on-surface-variant font-medium px-6 py-4 rounded-full hover:text-primary transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Generar otro
+        </button>
+      )}
     </div>
   )
 }

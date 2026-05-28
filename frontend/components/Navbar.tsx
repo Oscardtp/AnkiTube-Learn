@@ -27,8 +27,8 @@ export default function Navbar() {
             <BookOpen className="w-4 h-4" />
             Mis mazos
           </Link>
-          <Link href="/generate" className="btn-primary text-sm px-4 py-2">
-            Generar mazo
+          <Link href="/dashboard" className="btn-primary text-sm px-4 py-2">
+            Crear mazo
           </Link>
         </div>
 

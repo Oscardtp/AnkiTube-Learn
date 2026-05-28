@@ -37,7 +37,7 @@ export function LandingLayout({ children }: LandingLayoutProps) {
             <h4 className="font-bold text-on-surface mb-4">Producto</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/generate" className="text-sm text-on-surface-variant hover:text-primary transition-colors">
+                <Link href="#generador" className="text-sm text-on-surface-variant hover:text-primary transition-colors">
                   Generar mazo
                 </Link>
               </li>
