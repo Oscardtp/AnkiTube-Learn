@@ -6,9 +6,10 @@ import type { Deck } from "../types"
 
 interface DeckListProps {
   decks: Deck[]
+  onDeckDeleted?: () => void
 }
 
-export function DeckList({ decks }: DeckListProps) {
+export function DeckList({ decks, onDeckDeleted }: DeckListProps) {
   if (decks.length === 0) {
     return <EmptyState />
   }
@@ -16,7 +17,7 @@ export function DeckList({ decks }: DeckListProps) {
   return (
     <div className="space-y-2">
       {decks.map((deck) => (
-        <DeckCard key={deck.deck_id} deck={deck} />
+        <DeckCard key={deck.deck_id} deck={deck} onDeckDeleted={onDeckDeleted} />
       ))}
     </div>
   )
