@@ -89,13 +89,13 @@ export function DashboardNavbar({ user, onLogout, onGenerate }: DashboardNavbarP
           </Link>
         </div>
 
-        {/* CTA — hidden on mobile */}
+        {/* CTA — always visible */}
         <button
           onClick={onGenerate}
-          className="hidden md:flex items-center gap-2 h-[34px] px-3.5 bg-primary text-white text-[13px] font-medium rounded-lg hover:bg-[#1648c2] transition-colors"
+          className="flex items-center gap-2 h-[34px] px-3.5 bg-primary text-white text-[13px] font-medium rounded-lg hover:bg-[#1648c2] transition-colors"
         >
           <MaterialIcon name="add" className="text-base" />
-          <span>+ Generar mazo</span>
+          <span>Generar mazo</span>
         </button>
 
         {/* Avatar + dropdown */}

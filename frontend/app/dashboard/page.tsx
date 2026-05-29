@@ -1,6 +1,6 @@
 "use client"
 
-import { lazy, Suspense, useCallback, useState } from "react"
+import { lazy, Suspense, useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DuplicateDeckModal } from "@/components/DuplicateDeckModal"
 import { useDashboardData } from "@/features/dashboard/hooks/useDashboardData"
@@ -8,6 +8,8 @@ import { useDeckFilters } from "@/features/dashboard/hooks/useDeckFilters"
 import { DashboardNavbar } from "@/features/dashboard/components/DashboardNavbar"
 import { MobileDrawer } from "@/features/dashboard/components/MobileDrawer"
 import { DashboardHeader } from "@/features/dashboard/components/DashboardHeader"
+import { UpsellBar } from "@/features/dashboard/components/UpsellBar"
+import { TodayCard } from "@/features/dashboard/components/TodayCard"
 import { GeneratorBar } from "@/features/dashboard/components/GeneratorBar"
 import { DeckFilters } from "@/features/dashboard/components/DeckFilters"
 import { DeckList } from "@/features/dashboard/components/DeckList"
@@ -38,6 +40,21 @@ export default function DashboardPage() {
     document.getElementById("generator-section")?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
+  const urgentDeck = useMemo(() => {
+    if (!decks.length) return null
+    const withPending = decks.map((d) => {
+      const raw = d as unknown as Record<string, unknown>
+      const nc = (raw.new_cards as number) || 0
+      const rc = (raw.review_cards as number) || 0
+      return { deck: d, total: nc + rc, nc, rc }
+    }).filter((d) => d.total > 0)
+    if (!withPending.length) return null
+    withPending.sort((a, b) => b.total - a.total)
+    return withPending[0]
+  }, [decks])
+
+  const isExplorador = !user?.role || user.role === "user"
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-4">
@@ -60,9 +77,21 @@ export default function DashboardPage() {
       <MobileDrawer onLogout={handleLogout} />
 
       <main id="main-content" className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full" tabIndex={-1}>
-        <DashboardHeader user={user} />
+        <DashboardHeader user={user} pendingCards={urgentDeck?.total} />
 
-        <div id="generator-section">
+        {isExplorador && <div className="mt-3"><UpsellBar /></div>}
+
+        {urgentDeck && (
+          <div className="mt-3">
+            <TodayCard
+              deck={urgentDeck.deck}
+              pendingNew={urgentDeck.nc}
+              pendingReview={urgentDeck.rc}
+            />
+          </div>
+        )}
+
+        <div id="generator-section" className="mt-4">
           <GeneratorBar decks={decks} onDuplicateDetected={handleDuplicateDetected} />
         </div>
 
