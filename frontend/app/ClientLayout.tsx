@@ -10,7 +10,7 @@ import { NotificationSystem } from "@/components/NotificationSystem"
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
   const pathname = usePathname()
-  const isDashboard = pathname?.startsWith("/dashboard") || pathname?.startsWith("/settings") || pathname?.startsWith("/my-decks") || pathname?.startsWith("/preview") || pathname?.startsWith("/admin") || pathname?.startsWith("/activate-license")
+  const isDashboard = pathname?.startsWith("/dashboard") || pathname?.startsWith("/profile") || pathname?.startsWith("/my-decks") || pathname?.startsWith("/preview") || pathname?.startsWith("/admin") || pathname?.startsWith("/activate-license")
 
   const content = (
     <>

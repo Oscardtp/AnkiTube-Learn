@@ -12,7 +12,7 @@ interface MobileDrawerProps {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/my-flashcards", label: "Biblioteca", icon: "library_books" },
-  { href: "/settings", label: "Configuración", icon: "settings" },
+  { href: "/profile", label: "Mi perfil", icon: "person" },
 ]
 
 export function MobileDrawer({ onLogout }: MobileDrawerProps) {

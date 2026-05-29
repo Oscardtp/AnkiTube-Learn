@@ -8,7 +8,7 @@ const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/my-flashcards", label: "My Flashcards", icon: BookOpen },
   { href: "/dashboard", label: "Dashboard", icon: Sparkles },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/profile", label: "Mi perfil", icon: Settings },
 ];
 
 export function SideNavBar() {
