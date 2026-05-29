@@ -1,8 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { ChevronLeft, User } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 interface PreviewNavbarProps {
   isAuthenticated: boolean
@@ -11,73 +10,121 @@ interface PreviewNavbarProps {
 
 export default function PreviewNavbar({ isAuthenticated, customName }: PreviewNavbarProps) {
   const router = useRouter()
-  const [showMenu, setShowMenu] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!showMenu) return
-    function handleClick() {
-      setShowMenu(false)
+    const handleScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
     }
-    document.addEventListener("click", handleClick)
-    return () => document.removeEventListener("click", handleClick)
-  }, [showMenu])
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowDropdown(false)
+    }
+    document.addEventListener("mousedown", handler)
+    document.addEventListener("keydown", handleKey)
+    return () => {
+      document.removeEventListener("mousedown", handler)
+      document.removeEventListener("keydown", handleKey)
+    }
+  }, [showDropdown])
+
+  function handleLogout() {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    setShowDropdown(false)
+    router.push("/")
+  }
+
+  const initial = customName?.charAt(0).toUpperCase() || "U"
 
   return (
-    <nav className="sticky top-0 z-40 bg-surface/80 backdrop-blur-lg border-b border-outline-variant/30">
-      <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
+    <nav
+      className={`sticky top-0 z-50 h-[56px] bg-white border-b border-gray-200 transition-all duration-200 ${
+        scrolled ? "rounded-none" : "rounded-b-xl"
+      }`}
+    >
+      <div className="max-w-4xl mx-auto px-5 h-full flex items-center justify-between">
+        {/* Left — Back button */}
         <button
           onClick={() => isAuthenticated ? router.push("/dashboard") : router.push("/")}
-          className="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors text-sm font-medium"
+          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 transition-colors text-[13px] font-medium h-[34px] px-2.5 rounded-lg hover:bg-gray-50"
         >
-          <ChevronLeft className="w-4 h-4" />
-          {isAuthenticated ? "Dashboard" : "Inicio"}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Generar otro
         </button>
 
-        <span className="text-base font-bold text-on-surface tracking-tight">
-          AnkiTube
-        </span>
+        {/* Center — Logo (no link, muted) */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          <div className="w-[22px] h-[22px] bg-primary rounded-[5px] flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" />
+              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" opacity=".7" />
+              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" opacity=".7" />
+              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" opacity=".4" />
+            </svg>
+          </div>
+          <span className="text-[13px] font-semibold text-gray-400">AnkiTube</span>
+        </div>
 
+        {/* Right — Avatar (authenticated only) */}
         {isAuthenticated ? (
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowMenu(!showMenu)
-              }}
-              className="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary-container/50 transition-colors"
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-[11px] font-semibold border-[1.5px] border-gray-200 hover:border-primary transition-colors duration-150 cursor-pointer"
               aria-label="Menú de perfil"
+              aria-haspopup="menu"
+              aria-expanded={showDropdown}
             >
-              {customName ? customName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+              {initial}
             </button>
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-surface-container-lowest rounded-xl shadow-elevated border border-outline-variant/20 py-1 z-50">
-                <div className="px-4 py-2 border-b border-outline-variant/20">
-                  <p className="text-xs text-on-surface-variant">Conectado como</p>
-                  <p className="text-sm font-medium text-on-surface truncate">{customName || "Usuario"}</p>
-                </div>
+
+            {showDropdown && (
+              <div
+                role="menu"
+                className="absolute top-[36px] right-0 bg-white border border-gray-200 rounded-[10px] py-1.5 min-w-[160px] shadow-[0_4px_16px_rgba(0,0,0,.08)] z-[60] animate-dropdown-in"
+              >
                 <button
-                  onClick={() => router.push("/dashboard")}
-                  className="w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-high transition-colors"
+                  role="menuitem"
+                  onClick={() => { setShowDropdown(false); router.push("/dashboard") }}
+                  className="flex items-center gap-2 px-2.5 mx-1.5 py-2 rounded-md text-[13px] text-gray-600 hover:bg-gray-50 transition-colors w-full text-left"
                 >
-                  Dashboard
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                    <rect x="8.5" y="2" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                    <rect x="2" y="8.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                    <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                  Mis mazos
                 </button>
+                <div className="h-px bg-gray-200 mx-1.5 my-1" />
                 <button
-                  onClick={() => router.push("/my-decks")}
-                  className="w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-high transition-colors"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-2.5 mx-1.5 py-2 rounded-md text-[13px] text-red-600 hover:bg-red-50 transition-colors w-full text-left"
                 >
-                  Mis decks
-                </button>
-                <button
-                  onClick={() => router.push("/settings")}
-                  className="w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-high transition-colors"
-                >
-                  Configuración
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Cerrar sesión
                 </button>
               </div>
             )}
           </div>
         ) : (
-          <div className="w-8" />
+          <div className="w-7" />
         )}
       </div>
     </nav>

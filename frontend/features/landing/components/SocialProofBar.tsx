@@ -3,7 +3,13 @@
 import { TESTIMONIALS } from "../data"
 import TestimonialCard from "./TestimonialCard"
 
-export default function SocialProofBar() {
+interface SocialProofBarProps {
+  isAuthenticated?: boolean
+}
+
+export default function SocialProofBar({ isAuthenticated = false }: SocialProofBarProps) {
+  if (isAuthenticated) return null
+
   return (
     <section className="bg-surface-container-low py-8 px-6">
       <div className="max-w-7xl mx-auto">

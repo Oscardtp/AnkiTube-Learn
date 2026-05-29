@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
+import { Loader2, AlertCircle, Eye, EyeOff, ChevronLeft } from "lucide-react"
 import MinimalNavbar from "@/components/MinimalNavbar"
 import { api } from "@/lib/api"
 
@@ -43,6 +43,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-surface">
       <MinimalNavbar />
+
+      {/* Back to landing */}
+      <div className="max-w-2xl mx-auto px-6 md:px-12 pt-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors text-sm font-medium"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Volver al inicio
+        </Link>
+      </div>
 
       {/* Hero Section with Glassmorphism */}
       <section className="pt-8 pb-8 px-6 md:px-12">

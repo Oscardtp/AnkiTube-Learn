@@ -1,7 +1,11 @@
 import { PRICING_PLANS } from "../data"
 import PricingCard from "./PricingCard"
 
-export default function PricingSection() {
+interface PricingSectionProps {
+  currentPlan?: string
+}
+
+export default function PricingSection({ currentPlan }: PricingSectionProps) {
   return (
     <section id="pricing" className="section-padding bg-surface-container-low">
       <div className="container-limit">
@@ -30,6 +34,7 @@ export default function PricingSection() {
               cta={plan.cta}
               ctaStyle={plan.ctaStyle}
               featured={plan.featured}
+              isCurrentPlan={currentPlan === plan.name}
             />
           ))}
         </div>

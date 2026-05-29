@@ -16,6 +16,7 @@ interface PricingCardProps {
   cta: string
   ctaStyle: "primary" | "secondary"
   featured: boolean
+  isCurrentPlan?: boolean
 }
 
 export default function PricingCard({
@@ -29,20 +30,29 @@ export default function PricingCard({
   cta,
   ctaStyle,
   featured,
+  isCurrentPlan = false,
 }: PricingCardProps) {
   return (
     <div
       className={`bg-surface-container-lowest rounded-3xl p-8 flex flex-col relative overflow-hidden transition-all hover:shadow-2xl hover:shadow-on-surface/5 ${
-        featured ? "border-2 border-primary" : ""
+        isCurrentPlan
+          ? "border-2 border-emerald-500"
+          : featured
+            ? "border-2 border-primary"
+            : ""
       }`}
       style={{ boxShadow: "0 8px 24px rgba(25, 28, 30, 0.06)" }}
     >
-      {/* Badge "Más popular" */}
-      {featured && (
+      {/* Badge */}
+      {isCurrentPlan ? (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-10 whitespace-nowrap">
+          Tu plan actual
+        </div>
+      ) : featured ? (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-10 whitespace-nowrap">
           Más popular
         </div>
-      )}
+      ) : null}
 
       {/* Identity label */}
       <div
@@ -57,7 +67,7 @@ export default function PricingCard({
 
       {/* Price */}
       <div className="flex items-baseline gap-1 mb-2">
-        <span className={`text-4xl font-extrabold ${featured ? "text-primary" : "text-on-surface"}`}>
+        <span className={`text-4xl font-extrabold ${isCurrentPlan ? "text-emerald-600" : featured ? "text-primary" : "text-on-surface"}`}>
           {price}
         </span>
         <span className="text-on-surface-variant text-sm">{period}</span>
@@ -86,15 +96,24 @@ export default function PricingCard({
       </ul>
 
       {/* CTA */}
-      <button
-        className={`w-full py-3.5 rounded-full font-bold text-sm transition-all ${
-          ctaStyle === "primary"
-            ? "bg-primary text-white hover:opacity-90"
-            : "bg-surface-container-high text-on-surface hover:bg-surface-container-highest border border-outline-variant/30"
-        }`}
-      >
-        {cta}
-      </button>
+      {isCurrentPlan ? (
+        <button
+          disabled
+          className="w-full py-3.5 rounded-full font-bold text-sm bg-gray-100 text-gray-400 cursor-not-allowed"
+        >
+          Tu plan actual
+        </button>
+      ) : (
+        <button
+          className={`w-full py-3.5 rounded-full font-bold text-sm transition-all ${
+            ctaStyle === "primary"
+              ? "bg-primary text-white hover:opacity-90"
+              : "bg-surface-container-high text-on-surface hover:bg-surface-container-highest border border-outline-variant/30"
+          }`}
+        >
+          {cta}
+        </button>
+      )}
     </div>
   )
 }
