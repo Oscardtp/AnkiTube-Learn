@@ -191,3 +191,28 @@
     width: 64px;
   }
 }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .card-flip-inner {
+    transition: none !important;
+  }
+}
+
+/* Skip to content */
+.skip-to-content {
+  @apply sr-only;
+}
+
+.skip-to-content:focus {
+  @apply not-sr-only fixed top-4 left-4 z-[100] bg-primary text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg;
+}
