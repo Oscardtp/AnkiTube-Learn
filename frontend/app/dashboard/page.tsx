@@ -22,7 +22,7 @@ const StatsSection = lazy(() =>
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, decks, stats, isLoading } = useDashboardData()
+  const { user, decks, stats, isLoading, refetch } = useDashboardData()
   const { level, setLevel, timeFilter, setTimeFilter, sortBy, setSortBy, filteredDecks } = useDeckFilters(decks)
   const [duplicateDeck, setDuplicateDeck] = useState<Deck | null>(null)
 
@@ -115,7 +115,7 @@ export default function DashboardPage() {
             onSortChange={setSortBy}
           />
 
-          <DeckList decks={filteredDecks} />
+          <DeckList decks={filteredDecks} onDeckDeleted={refetch} />
         </section>
       </main>
 

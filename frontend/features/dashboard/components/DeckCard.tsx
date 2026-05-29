@@ -9,6 +9,7 @@ import type { Deck } from "../types"
 
 interface DeckCardProps {
   deck: Deck
+  onDeckDeleted?: () => void
 }
 
 function getRelativeDate(dateStr: string): string {
@@ -33,14 +34,15 @@ const LEVEL_BADGE: Record<string, { bg: string; text: string }> = {
   C2: { bg: "bg-amber-50", text: "text-amber-800" },
 }
 
-export function DeckCard({ deck }: DeckCardProps) {
+export function DeckCard({ deck, onDeckDeleted }: DeckCardProps) {
   const { expandedDeckId, toggleDeck } = useDashboardStore()
   const isExpanded = expandedDeckId === deck.deck_id
   const badge = LEVEL_BADGE[deck.level] || LEVEL_BADGE.B1
 
   const [downloading, setDownloading] = useState(false)
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState("")
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const raw = deck as unknown as Record<string, unknown>
   const pendingCards = (raw.new_cards as number) || 0
@@ -68,19 +70,32 @@ export function DeckCard({ deck }: DeckCardProps) {
   }, [deck])
 
   const handleDelete = useCallback(() => {
+    setDeleteConfirmed(false)
     setShowDeleteSheet(true)
-    setDeleteConfirm("")
   }, [])
 
-  const confirmDelete = useCallback(() => {
-    if (deleteConfirm !== deck.video_title) return
-    // Soft delete — mark as deleted
+  const confirmDelete = useCallback(async () => {
+    if (!deleteConfirmed) return
+    setDeleting(true)
+    try {
+      await api.deleteDeck(deck.deck_id)
+      setShowDeleteSheet(false)
+      setDeleteConfirmed(false)
+      onDeckDeleted?.()
+    } catch {
+      // error handled silently
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteConfirmed, deck.deck_id, onDeckDeleted])
+
+  const closeDeleteSheet = useCallback(() => {
     setShowDeleteSheet(false)
-    setDeleteConfirm("")
-  }, [deleteConfirm, deck.video_title])
+    setDeleteConfirmed(false)
+  }, [])
 
   return (
-    <div>
+    <>
       <article
         className="bg-white rounded-xl border border-gray-200 overflow-hidden transition-all"
         aria-expanded={isExpanded}
@@ -186,31 +201,57 @@ export function DeckCard({ deck }: DeckCardProps) {
         )}
       </article>
 
-      {/* Delete confirmation bottom sheet */}
+      {/* Delete confirmation bottom sheet — rendered outside article to avoid overflow-hidden */}
       {showDeleteSheet && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center" style={{ background: "rgba(0,0,0,.45)" }}>
           <div className="bg-white rounded-t-[14px] w-full max-w-[390px] p-5 pb-6 animate-slide-up">
-            <div className="text-[15px] font-medium text-gray-900 mb-2">¿Eliminás este mazo?</div>
+            <div className="text-[15px] font-medium text-gray-900 mb-1">
+              ¿De verdad vas a borrar este mazo?
+            </div>
             <p className="text-[13px] text-gray-500 leading-relaxed mb-4">
-              No hay vuelta atrás, parce. Se borran todas las tarjetas y no se pueden recuperar.
+              ¡Pilas! Si le das viaje, vas a perder todo el progreso de estudio que llevás y no hay marcha atrás.
             </p>
-            <div className="text-xs text-gray-500 mb-1.5">Escribí el nombre del mazo para confirmar</div>
-            <input
-              type="text"
-              value={deleteConfirm}
-              onChange={(e) => setDeleteConfirm(e.target.value)}
-              placeholder={deck.video_title}
-              className="w-full h-9 border border-gray-200 rounded-lg px-2.5 text-[13px] bg-white text-gray-900 outline-none focus:border-red-400 mb-4"
-            />
+
+            {/* Confirmation checkbox */}
+            <label className="flex items-start gap-2.5 mb-5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={deleteConfirmed}
+                onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400"
+              />
+              <span className="text-[13px] text-gray-600 leading-snug">
+                Entiendo que no se puede recuperar
+              </span>
+            </label>
+
+            {/* Buttons — inverted hierarchy: escape is primary, destructive is subtle */}
+            <div className="flex gap-2">
+              <button
+                onClick={closeDeleteSheet}
+                className="flex-1 h-10 bg-primary text-white rounded-[9px] text-sm font-medium hover:bg-[#1648c2] transition-colors"
+              >
+                Dejarlo así
+              </button>
+              <button
+                disabled={!deleteConfirmed || deleting}
+                onClick={confirmDelete}
+                className={`flex-1 h-10 rounded-[9px] text-sm font-medium border transition-all ${
+                  deleteConfirmed && !deleting
+                    ? "border-red-300 text-red-600 bg-red-50 hover:bg-red-100"
+                    : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                }`}
+              >
+                {deleting ? (
+                  <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                ) : (
+                  "Sí, borrar la vuelta"
+                )}
+              </button>
+            </div>
+
             <button
-              disabled={deleteConfirm !== deck.video_title}
-              onClick={confirmDelete}
-              className={`w-full h-10 bg-red-500 text-white rounded-[9px] text-sm font-medium transition-opacity ${deleteConfirm === deck.video_title ? "opacity-100" : "opacity-40 cursor-not-allowed"}`}
-            >
-              Eliminar para siempre
-            </button>
-            <button
-              onClick={() => { setShowDeleteSheet(false); setDeleteConfirm("") }}
+              onClick={closeDeleteSheet}
               className="w-full h-9 mt-2 border border-gray-200 rounded-lg text-[13px] text-gray-500 hover:bg-gray-50 transition-colors"
             >
               Cancelar
@@ -218,6 +259,6 @@ export function DeckCard({ deck }: DeckCardProps) {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
