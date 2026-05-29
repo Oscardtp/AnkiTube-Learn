@@ -125,7 +125,7 @@ export function DashboardNavbar({ user, onLogout, onGenerate }: DashboardNavbarP
               </div>
               <div className="h-px bg-gray-200 mx-1.5 mb-1" />
               <Link
-                href="/settings"
+                href="/profile"
                 role="menuitem"
                 onClick={() => setShowDropdown(false)}
                 className="flex items-center gap-2 px-2.5 mx-1.5 py-2 rounded-md text-[13px] text-gray-600 hover:bg-gray-50 transition-colors"

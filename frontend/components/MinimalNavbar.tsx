@@ -139,7 +139,7 @@ export default function MinimalNavbar() {
                       Mis mazos
                     </Link>
                     <Link
-                      href="/settings"
+                      href="/profile"
                       role="menuitem"
                       onClick={() => setShowDropdown(false)}
                       className="flex items-center gap-2 px-2.5 mx-1.5 py-2 rounded-md text-[13px] text-gray-600 hover:bg-gray-50 transition-colors"
