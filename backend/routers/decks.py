@@ -19,7 +19,6 @@ from config import get_settings
 settings = get_settings()
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 router = APIRouter(prefix="/api/decks", tags=["decks"])
 
@@ -151,6 +150,8 @@ async def generate_deck(
         video_title=transcript_data["title"],
         video_thumbnail=transcript_data["thumbnail"],
         video_id=transcript_data["video_id"],
+        level=payload.level,
+        context=payload.context,
         cards=cards,
         model_used=model_used,
         total_cards=len(cards),

@@ -60,6 +60,8 @@ class GenerateResponse(BaseModel):
     video_title: str
     video_thumbnail: str
     video_id: str
+    level: str
+    context: str
     cards: list[Card]
     model_used: str
     total_cards: int
