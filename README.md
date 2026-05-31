@@ -1,164 +1,113 @@
-[README_diff.md](https://github.com/user-attachments/files/28156705/README_diff.md)
---- README.md
-
-
-+++ README.md
-# AnkiTube Learn 🚀
+# AnkiTube Learn
 
 **Convierte cualquier video de YouTube en tu clase de inglés personalizada.**
 
-Plataforma web SaaS que transforma videos de YouTube en mazos Anki personalizados usando IA, con audio real del video embebido en cada tarjeta.
+Plataforma SaaS que transforma videos de YouTube en mazos Anki personalizados usando IA, con audio real del video embebido en cada tarjeta.
 
-![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)
 ![Backend](https://img.shields.io/badge/backend-FastAPI-green)
 ![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-blue)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-green)
 
----
-
-## 📖 Tabla de Contenidos
-
-- [Qué es AnkiTube Learn](#-qué-es-ankitube-learn)
-- [Características](#-características)
-- [Stack Técnico](#-stack-técnico)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Requisitos Previos](#-requisitos-previos)
-- [Instalación y Configuración](#-instalación-y-configuración)
-- [Cómo Usar](#-cómo-usar)
-- [API Endpoints](#-api-endpoints)
-- [Modelo de Precios](#-modelo-de-precios)
-- [Roadmap](#-roadmap)
-- [Contribuir](#-contribuir)
-- [Licencia](#-licencia)
+**Dominio:** [ankitubelearn.com](https://ankitubelearn.com) | **Backend:** Railway | **Frontend:** Vercel (pendiente)
 
 ---
 
-## ✨ Qué es AnkiTube Learn
+## Qué es AnkiTube Learn
 
-AnkiTube Learn es una plataforma diseñada para colombianos (22-38 años) que están aprendiendo inglés, especialmente aquellos que trabajan en BPO/Call Center. La aplicación:
+AnkiTube Learn es una plataforma diseñada para colombianos (22-38 años) que están aprendiendo inglés, especialmente aquellos que trabajan en BPO/Call Center.
 
 1. **Analiza videos de YouTube** usando IA para extraer frases y vocabulario relevante
-2. **Genera tarjetas Anki** (.apkg) con audio real del video embebido
+2. **Genera tarjetas Anki** (.apkg) con audio real del momento exacto del video
 3. **Incluye contexto colombiano** en cada tarjeta para facilitar el aprendizaje
 4. **Ofrece vista previa** antes de descargar el mazo completo
 
-**Tagline:** "Convierte cualquier video de YouTube en tu clase de inglés personalizada."
-
-**Dominio:** [ankitubelearn.com](https://ankitubelearn.com)
-**GitHub:** [github.com/Oscardtp/AnkiTube-Learn](https://github.com/Oscardtp/AnkiTube-Learn)
-
 ---
 
-## 🎯 Características
-
-### ✅ Completadas (Backend)
-
-- **Generación de mazos con IA**: Convierte videos en 5-15 tarjetas de estudio
-- **Audio embebido**: Cada tarjeta incluye audio real del momento exacto del video
-- **Notas contextuales**: Incluye gramática, contexto y equivalente colombiano
-- **Sistema de licencias**: Códigos tester para usuarios beta (ANKI-XXXX-XXXX)
-- **Panel Superadmin**: Métricas, gestión de usuarios y feedback con 2FA
-- **Auth JWT**: Registro, login y protección de rutas
-- **Feedback integrado**: Sistema de reportes en 5 momentos clave
-- **Modo Freemium**: 1 mazo/día, máximo 15 tarjetas para usuarios gratuitos
-
-### ⏳ En Desarrollo (Frontend)
-
-- Interfaz de generación de mazos
-- Vista previa de tarjetas con flip 3D
-- Sesiones de estudio con sistema SM-2
-- Dashboard de usuario
-- Integración con NextAuth.js
-
----
-
-## 🛠️ Stack Técnico
+## Stack Técnico
 
 | Capa | Tecnología | Estado |
 |------|------------|--------|
-| **Frontend** | Next.js 14 + Tailwind CSS | ⏳ En desarrollo |
-| **Backend** | Python FastAPI (async) | ✅ Completo |
-| **Base de Datos** | MongoDB Atlas + Motor async | ✅ Conectado |
-| **Caché** | Redis | ⏳ Pendiente |
-| **IA FREE** | Gemini 2.0 Flash | ✅ Configurado |
-| **IA FLUENTE** | Gemini 1.5 Pro | ✅ Configurado |
-| **IA NATIVO** | Claude Sonnet 4 | ✅ Configurado |
-| **Mazos** | genanki → .apkg | ✅ Funcional |
-| **YouTube** | Mock (Fase 1) / yt-dlp (Fase 2) | ✅ Mock listo |
-| **Auth** | NextAuth.js + JWT + bcrypt | ✅ Backend, ⏳ Frontend |
-| **Pagos** | Stripe | ⏳ Fase 2 |
-| **Deploy** | Railway (backend) + Vercel (frontend) | ⏳ Pendiente |
+| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS | Funcional |
+| **State** | Zustand + TanStack React Query | Funcional |
+| **Backend** | Python FastAPI (async) | Producción |
+| **Base de Datos** | MongoDB Atlas + Motor async | Activo |
+| **Caché** | Redis Cloud | Activo |
+| **IA** | OpenRouter → Gemini → Claude (fallback) | Activo |
+| **Mazos** | genanki → .apkg con audio | Funcional |
+| **YouTube** | youtube-transcript-api (real) | Funcional |
+| **Auth** | JWT + bcrypt | Funcional |
+| **Pagos** | Stripe | Pendiente (Fase 2) |
+| **Deploy** | Railway (backend) + Vercel (frontend) | Backend en producción |
+
+**Cadena de fallback IA:** OpenRouter (Llama 3.2 free) → OpenRouter Secondary (DeepSeek) → OpenRouter Tertiary (Gemini Flash) → Gemini Flash → error. Circuit breaker: 3 fallos → 5 min cooldown.
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 AnkiTube-Learn/
-├── backend/                 # API FastAPI
-│   ├── main.py             # Punto de entrada
-│   ├── config.py           # Configuración
-│   ├── database.py         # Conexión MongoDB
-│   ├── requirements.txt    # Dependencias Python
-│   ├── Procfile            # Deploy Railway
-│   ├── models/             # Modelos de datos
-│   │   ├── user.py
-│   │   ├── deck.py
-│   │   ├── feedback.py
-│   │   └── license.py
-│   ├── routers/            # Endpoints API
-│   │   ├── auth.py
-│   │   ├── decks.py
-│   │   ├── feedback.py
-│   │   ├── licenses.py
-│   │   └── admin.py
-│   ├── services/           # Lógica de negocio
-│   │   ├── ai_router.py    # Router IA con fallback
-│   │   ├── anki_service.py # Generación .apkg
-│   │   └── youtube_mock.py # Mock YouTube
-│   └── utils/              # Utilidades
-│       ├── prompts.py      # Prompts IA
-│       ├── auth.py         # Auth helpers
-│       ├── freemium.py     # Límites free
-│       └── rate_limit.py   # Rate limiting
+├── backend/                    # FastAPI API → Railway
+│   ├── main.py                # Punto de entrada
+│   ├── config.py              # Settings (pydantic-settings)
+│   ├── database.py            # Conexión MongoDB
+│   ├── models/                # Modelos de datos
+│   ├── routers/               # Endpoints (auth, decks, feedback, licenses, admin)
+│   ├── services/              # Lógica de negocio
+│   │   ├── ai_router.py       # Router IA con fallback + circuit breaker
+│   │   ├── anki_service.py    # Generación .apkg
+│   │   ├── youtube_real.py    # Transcripción real
+│   │   └── youtube_mock.py    # Mock para desarrollo
+│   └── utils/                 # Prompts, auth, freemium, rate limiting
 │
-├── frontend/               # App Next.js 14
-│   ├── app/               # App Router
-│   ├── components/        # Componentes React
-│   ├── context/           # Context API
-│   ├── hooks/             # Custom hooks
-│   ├── lib/               # Utilidades
-│   └── public/            # Assets estáticos
+├── frontend/                  # Next.js 14 app → Vercel
+│   ├── app/                   # App Router (14 páginas)
+│   │   ├── page.tsx           # Landing page
+│   │   ├── dashboard/         # Dashboard de usuario
+│   │   ├── preview/[deck_id]/ # Vista previa de mazos
+│   │   ├── admin/             # Panel admin (5 sub-páginas)
+│   │   ├── login/             # Login
+│   │   ├── register/          # Registro
+│   │   └── ...
+│   ├── components/            # 20+ componentes UI
+│   ├── features/              # Módulos feature-based
+│   │   ├── landing/           # Secciones de landing
+│   │   └── dashboard/         # Componentes del dashboard
+│   ├── hooks/                 # Custom hooks (useDeck, useCurrentUser, etc.)
+│   ├── stores/                # Zustand stores
+│   ├── lib/api.ts             # API client centralizado (19 endpoints)
+│   └── types/                 # TypeScript types
 │
-├── CLAUDE.md              # Documentación completa
-└── README.md              # Este archivo
+├── docs/                      # Documentación detallada
+├── workspace colaborativo/    # Specs, screenshots, planes
+└── CLAUDE.md                  # Contexto para IA
 ```
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
 ### Backend
 
 - **Python 3.12** (3.14 no es compatible)
-- **Rust** (para algunas dependencias)
 - **MongoDB Atlas** (cuenta gratuita)
-- **Redis** (opcional, para caché)
+- **Redis** (opcional en local, necesario en producción)
 
 ### Frontend
 
 - **Node.js 18+**
-- **npm** o **yarn**
+- **npm**
 
-### APIs (Opcional - tiene modo mock)
+### APIs
 
-- Google API Key (Gemini)
-- Anthropic API Key (Claude)
+- **OpenRouter API Key** (obligatoria — proveedor primario de IA)
+- Google API Key (Gemini — fallback)
+- Anthropic API Key (Claude — fallback)
 
 ---
 
-## 🔧 Instalación y Configuración
+## Instalación y Configuración
 
 ### 1. Clonar el Repositorio
 
@@ -171,107 +120,87 @@ cd AnkiTube-Learn
 
 ```bash
 cd backend
-
-# Crear entorno virtual
 python -m venv .venv
 
-# Activar entorno (Windows)
+# Windows
 .venv\Scripts\activate
 
-# Activar entorno (Mac/Linux)
+# Mac/Linux
 source .venv/bin/activate
 
-# Instalar dependencias
 pip install -r requirements.txt
-
-# Copiar variables de entorno
 cp .env.example .env
-
 # Editar .env con tus credenciales
-# MONGODB_URL, JWT_SECRET, API Keys, etc.
 ```
 
 ### 3. Configurar Frontend
 
 ```bash
 cd frontend
-
-# Instalar dependencias
 npm install
-
-# Copiar variables de entorno (si aplica)
-cp .env.example .env.local
 ```
 
-### 4. Variables de Entorno (.env)
+### 4. Variables de Entorno
+
+Copiar `backend/.env.example` y completar:
 
 ```bash
-# App
-DEBUG=true
-FRONTEND_URL=http://localhost:3000
-
 # MongoDB
 MONGODB_URL=mongodb+srv://usuario:password@cluster.mongodb.net/?appName=AnkiTube
 MONGODB_DB=ankitube_learn
 
-# Redis
-REDIS_URL=redis://localhost:6379
-
 # JWT
 JWT_SECRET=tu_clave_secreta_larga
-JWT_EXPIRE_MINUTES=10080
 
-# AI — Gemini
+# AI — OpenRouter (proveedor primario)
+OPENROUTER_API_KEY=tu_api_key_de_openrouter
+
+# AI — Gemini (fallback)
 GOOGLE_API_KEY=AIza...
-LLM_MODEL_FREE=gemini-2.0-flash
-LLM_MODEL_FLUENTE=gemini-1.5-pro
 
-# AI — Anthropic
+# AI — Anthropic (fallback)
 ANTHROPIC_API_KEY=sk-ant-...
-LLM_MODEL_NATIVO=claude-sonnet-4-20250514
 
 # Superadmin 2FA
 SUPERADMIN_2FA_CODE=tu_codigo_6_digitos
 
-# Freemium
-FREE_MAX_CARDS=15
-FREE_MAX_DECKS_PER_DAY=1
-
 # Development
-USE_MOCK_AI=true  # Cambiar a false con créditos IA reales
+USE_MOCK_AI=true  # Cambiar a false con IA real
+```
+
+Frontend: crear `frontend/.env.local`:
+```bash
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
 ---
 
-## ▶️ Cómo Usar
+## Cómo Usar
 
-### Iniciar Backend
+### Backend
 
 ```bash
 cd backend
 .venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Mac/Linux
-
 uvicorn main:app --reload
 ```
 
-Acceder a:
-- **Raíz:** http://127.0.0.1:8000
+- **API:** http://127.0.0.1:8000
 - **Health:** http://127.0.0.1:8000/health
-- **Swagger Docs:** http://127.0.0.1:8000/docs (solo DEBUG=true)
+- **Swagger:** http://127.0.0.1:8000/docs (solo con DEBUG=true)
 
-### Iniciar Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Acceder a: http://localhost:3000
+- **App:** http://localhost:3000
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Autenticación
 
@@ -289,6 +218,8 @@ Acceder a: http://localhost:3000
 | GET | `/api/decks/{id}` | Obtener mazo específico |
 | GET | `/api/decks/{id}/download` | Descargar .apkg |
 | POST | `/api/decks/{id}/cards/add` | Añadir tarjeta manual |
+| POST | `/api/decks/{id}/claim` | Reclamar mazo anónimo |
+| DELETE | `/api/decks/{id}` | Eliminar mazo (soft delete) |
 | GET | `/api/decks/user/my-decks` | Lista mazos del usuario |
 
 ### Feedback
@@ -309,15 +240,20 @@ Acceder a: http://localhost:3000
 |--------|----------|-------------|
 | GET | `/api/admin/metrics` | Métricas generales |
 | GET | `/api/admin/users` | Lista todos los usuarios |
+| PATCH | `/api/admin/users/{id}/role` | Cambiar rol de usuario |
 | GET | `/api/admin/feedback` | Todos los feedbacks |
+| GET | `/api/admin/flagged-cards` | Tarjetas reportadas |
+| GET | `/api/licenses/admin` | Listar licencias |
+| POST | `/api/licenses/admin` | Crear licencia |
+| DELETE | `/api/licenses/admin/{code}` | Eliminar licencia |
 
 ---
 
-## 💰 Modelo de Precios
+## Modelo de Precios
 
 | Plan | Precio | IA | Límite |
 |------|--------|-----|--------|
-| **Explorador** | $0 COP/mes | Gemini Flash | 1 mazo/día, max 15 tarjetas |
+| **Explorador** | $0 COP/mes | OpenRouter (gratis) | 1 mazo/día, max 15 tarjetas |
 | **Fluente** | $15.000 COP/mes | Gemini Pro | Ilimitado, todos contextos |
 | **Nativo** | $120.000 COP/año | Claude Sonnet 4 | Todo + WhatsApp directo |
 
@@ -325,46 +261,55 @@ Acceder a: http://localhost:3000
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### ✅ Fase 1 — MVP (Actual)
+### Fase 1 — MVP (Actual)
 
 - [x] Backend FastAPI completo
-- [x] Generación de mazos con IA
+- [x] Generación de mazos con IA (OpenRouter + fallback)
+- [x] Transcripción real de YouTube
 - [x] Sistema de licencias tester
 - [x] Panel superadmin con 2FA
-- [ ] Frontend /generate
-- [ ] Frontend /preview con CardFlip
-- [ ] Frontend /study con SM-2
-- [ ] Deploy Railway + Vercel
+- [x] Frontend funcional (Landing, Dashboard, Preview, Admin)
+- [x] Auth JWT completo (backend + frontend)
+- [x] Sistema de feedback
+- [ ] Deploy frontend en Vercel
 
-### ⏳ Fase 2 — Producto Avanzado (Meses 4-8)
+### Fase 2 — Producto Avanzado
 
-- [ ] YouTube real (yt-dlp + FFmpeg)
+- [ ] Estudio con sistema SM-2 (spaced repetition)
+- [ ] YouTube embed en preview
 - [ ] Stripe + pagos
 - [ ] Setup Wizard (5 preguntas)
 - [ ] Curación guiada
 - [ ] Recomendador de videos
-- [ ] Celery + Redis
+- [ ] Celery + Redis (tareas en segundo plano)
 
-### ⏳ Fase 3 — Motor de Skills (Meses 9-14)
+### Fase 3 — Motor de Skills
 
 - [ ] Listening, Reading, Writing, Speaking
 - [ ] Plan de estudio 8 semanas
-- [ ] Firecrawl para artículos
 - [ ] Reproductor integrado
 
-### ⏳ Fase 4 — Mobile & Scale (Mes 15+)
+### Fase 4 — Mobile & Scale
 
 - [ ] App React Native
-- [ ] Reproductor Anki integrado
 - [ ] Expansión Latinoamérica
 
 ---
 
-## 🤝 Contribuir
+## Reglas de Negocio
 
-¡Las contribuciones son bienvenidas! Sigue estos pasos:
+1. `colombian_note` obligatorio — sin él, tarjeta se descarta
+2. Audio siempre en backend — yt-dlp + FFmpeg, nunca en frontend
+3. Freemium = 1 mazo/día — verificado server-side
+4. Superadmin requiere 2FA — en cada request
+5. Soft delete siempre — usar `deleted_at`, nunca borrar de MongoDB
+6. Mock = schema real — `youtube_mock.py` misma firma que el real
+
+---
+
+## Contribuir
 
 1. Fork el repositorio
 2. Crea una rama (`git checkout -b feature/AmazingFeature`)
@@ -372,17 +317,17 @@ Acceder a: http://localhost:3000
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-Por favor, lee `CLAUDE.md` para entender el contexto completo del proyecto.
+Lee `CLAUDE.md` para entender el contexto completo del proyecto.
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
 ---
 
-## 📞 Contacto
+## Contacto
 
 **Fundador:** Oscardtp
 **Email:** oscardtp15@gmail.com
@@ -392,8 +337,4 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ---
 
-## 🇨🇴 Hecho en Colombia
-
-AnkiTube Learn está desarrollado en Colombia 🇨🇴 para ayudar a colombianos a aprender inglés de manera efectiva y contextualizada.
-
-**¡Únete a la revolución del aprendizaje de inglés!** 🚀
+Hecho en Colombia 🇨🇴 para ayudar a colombianos a aprender inglés de manera efectiva y contextualizada.
