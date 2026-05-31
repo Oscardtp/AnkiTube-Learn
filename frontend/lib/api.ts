@@ -127,7 +127,14 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  register: (email: string, password: string): Promise<{ access_token: string; user: UserResponse }> =>
+  // TODO: Backend UserCreate model solo acepta email + password.
+  // Cuando el backend soporte name y preferred_language, enviarlos en el body.
+  register: (
+    email: string,
+    password: string,
+    _name?: string,
+    _preferredLanguage?: string,
+  ): Promise<{ access_token: string; user: UserResponse }> =>
     fetchAPI("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password }),

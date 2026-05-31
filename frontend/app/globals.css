@@ -232,3 +232,57 @@
 .animate-dropdown-in {
   animation: dropdown-in 150ms ease-out forwards;
 }
+
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 300ms ease-out forwards;
+}
+
+/* Shake animation for errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+.animate-shake {
+  animation: shake 400ms ease-out;
+}
+
+/* Checkmark draw animation */
+@keyframes check-draw {
+  0% {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-check-draw .animate-check-stroke {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: check-draw 600ms ease-out 200ms forwards;
+}
+
+/* Reduced motion — disable animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-shake,
+  .animate-check-draw .animate-check-stroke {
+    animation: none !important;
+  }
+}
