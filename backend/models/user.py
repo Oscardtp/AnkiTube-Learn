@@ -58,6 +58,9 @@ class UserResponse(BaseModel):
     role: str
     setup_wizard_completed: bool
     generations_today: int
+    total_decks: Optional[int] = None
+    total_cards: Optional[int] = None
+    custom_name: Optional[str] = None
 
 
 class TokenResponse(BaseModel):

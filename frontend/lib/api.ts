@@ -142,7 +142,7 @@ export const api = {
 
   getCurrentUser: (): Promise<UserResponse> => fetchAPI("/api/auth/me"),
 
-  // Feedback
+  // Feedback — maps frontend fields to backend contract
   submitFeedback: (data: {
     type: "post_generation" | "post_download" | "card_report" | "nps" | "general"
     rating?: number
@@ -150,11 +150,44 @@ export const api = {
     card_id?: string
     issue?: string
     deck_id?: string
-  }): Promise<{ message: string }> =>
-    fetchAPI("/api/feedback", {
+  }): Promise<{ message: string }> => {
+    // Map rating number to quick_answer string
+    const ratingToAnswer: Record<number, string> = {
+      1: "No era lo que esperaba",
+      2: "Más o menos",
+      3: "Bien",
+      4: "Buenísimas",
+      5: "🔥",
+    }
+    // Map frontend type to backend moment
+    const typeToMoment: Record<string, string> = {
+      post_generation: "post_generation",
+      post_download: "post_generation",
+      card_report: "card_report",
+      nps: "nps",
+      general: "general",
+    }
+    // Map issue to intent
+    const issueToIntent: Record<string, string> = {
+      report: "report",
+      suggestion: "suggestion",
+      praise: "praise",
+    }
+
+    const body = {
+      moment: typeToMoment[data.type] || data.type,
+      quick_answer: data.rating ? ratingToAnswer[data.rating] || String(data.rating) : data.comment || "default",
+      text: data.comment || undefined,
+      intent: data.issue ? issueToIntent[data.issue] || data.issue : undefined,
+      deck_id: data.deck_id || undefined,
+      card_id: data.card_id || undefined,
+    }
+
+    return fetchAPI("/api/feedback", {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(body),
+    })
+  },
 
   // Admin
   getAdminMetrics: (twoFactorCode?: string): Promise<any> =>
@@ -166,10 +199,9 @@ export const api = {
     fetchAPI(`/api/admin/users?page=${page}&limit=${limit}`),
 
   updateAdminUserRole: (userId: string, role: string, twoFactorCode?: string): Promise<{ id: string; role: string }> =>
-    fetchAPI(`/api/admin/users/${userId}/role`, {
+    fetchAPI(`/api/admin/users/${userId}/role?role=${encodeURIComponent(role)}`, {
       method: "PATCH",
       headers: twoFactorCode ? { "X-2FA-Code": twoFactorCode } : {},
-      body: JSON.stringify({ role }),
     }),
 
   getAdminFeedback: (page: number = 1, limit: number = 50, moment?: string, intent?: string, twoFactorCode?: string): Promise<any> => {
