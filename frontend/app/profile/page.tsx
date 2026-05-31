@@ -114,17 +114,22 @@ export default function ProfilePage() {
     setTimeout(() => nameInputRef.current?.focus(), 50)
   }
 
-  function saveName() {
+  async function saveName() {
     const val = nameInput.trim()
     if (!val) return
-    setName(val)
-    setEditingName(false)
-    if (user) {
-      const updated = { ...user, custom_name: val }
-      setUser(updated)
-      localStorage.setItem("user", JSON.stringify(updated))
+    try {
+      await api.updateProfile({ custom_name: val })
+      setName(val)
+      setEditingName(false)
+      if (user) {
+        const updated = { ...user, custom_name: val }
+        setUser(updated)
+        localStorage.setItem("user", JSON.stringify(updated))
+      }
+      showToast("Nombre actualizado")
+    } catch {
+      showToast("No se pudo guardar el nombre")
     }
-    showToast("Nombre actualizado")
   }
 
   function cancelEditName() {

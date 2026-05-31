@@ -67,3 +67,12 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ProfileUpdateRequest(BaseModel):
+    custom_name: Optional[str] = Field(None, max_length=100)
+    preferred_language: Optional[str] = Field(None, max_length=50)

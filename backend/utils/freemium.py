@@ -4,7 +4,9 @@ Verifies 1 deck/day limit for free users in Colombia timezone (UTC-5).
 """
 
 from datetime import datetime
+from typing import Optional
 import pytz
+from bson import ObjectId
 
 from config import get_settings
 
@@ -53,3 +55,39 @@ def get_max_cards_for_role(role: str) -> int:
     if role == "user":
         return settings.free_max_cards
     return 25  # Premium and above get more cards
+
+
+async def update_generation_counter(db, user_id: str, user_doc: dict) -> None:
+    """
+    Update the generation counter for a user after a successful deck generation.
+    Resets counter if it's a new day in Colombia timezone.
+    """
+    today_colombia = get_colombia_today()
+    last_gen = user_doc.get("last_generation_date")
+
+    if last_gen:
+        if last_gen.tzinfo is None:
+            last_gen = pytz.utc.localize(last_gen)
+        last_gen_colombia = last_gen.astimezone(COLOMBIA_TZ)
+
+        if last_gen_colombia.date() != today_colombia.date():
+            # New day — reset counter
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"last_generation_date": datetime.utcnow(), "generations_today": 1}},
+            )
+        else:
+            # Same day — increment
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {"last_generation_date": datetime.utcnow()},
+                    "$inc": {"generations_today": 1},
+                },
+            )
+    else:
+        # First generation ever
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"last_generation_date": datetime.utcnow(), "generations_today": 1}},
+        )
