@@ -4,27 +4,15 @@ Same signature as youtube_mock.py — drop-in replacement.
 """
 
 import logging
-import re
 from typing import Optional
 
 import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
 
+from utils.youtube import extract_video_id
+
 logger = logging.getLogger(__name__)
-
-
-def extract_video_id(url: str) -> Optional[str]:
-    """Extract YouTube video ID from various URL formats."""
-    patterns = [
-        r"(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)",
-        r"youtube\.com\/shorts\/([^&\n?#]+)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
 
 
 def get_transcript(youtube_url: str, context: str = "general") -> dict:

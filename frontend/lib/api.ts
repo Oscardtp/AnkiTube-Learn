@@ -142,6 +142,18 @@ export const api = {
 
   getCurrentUser: (): Promise<UserResponse> => fetchAPI("/api/auth/me"),
 
+  forgotPassword: (email: string): Promise<{ message: string }> =>
+    fetchAPI("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  updateProfile: (data: { custom_name?: string; preferred_language?: string }): Promise<{ message: string; fields: string[] }> =>
+    fetchAPI("/api/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   // Feedback — maps frontend fields to backend contract
   submitFeedback: (data: {
     type: "post_generation" | "post_download" | "card_report" | "nps" | "general"

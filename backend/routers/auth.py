@@ -1,12 +1,14 @@
+import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from bson import ObjectId
 
 from database import get_db
-from models.user import UserCreate, UserLogin, TokenResponse, UserResponse
+from models.user import UserCreate, UserLogin, TokenResponse, UserResponse, ForgotPasswordRequest, ProfileUpdateRequest
 from utils.auth import hash_password, verify_password, create_access_token, require_auth
 from utils.rate_limit import limiter
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
@@ -136,3 +138,51 @@ async def me(current_user: dict = Depends(require_auth)):
         total_cards=total_cards,
         custom_name=user.get("custom_name"),
     )
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, payload: ForgotPasswordRequest):
+    """
+    Request a password reset. Always returns success for security
+    (prevents email enumeration).
+    """
+    db = get_db()
+
+    # Check if user exists (but don't reveal this)
+    user = await db.users.find_one({"email": payload.email.lower(), "deleted_at": None})
+
+    if user:
+        # TODO: Send password reset email with token
+        # For now, just log that a reset was requested
+        logger.info(f"Password reset requested for: {payload.email.lower()}")
+
+    # Always return success to prevent email enumeration
+    return {
+        "message": "Si el correo coincide con una cuenta activa, recibirás un mensaje en breve."
+    }
+
+
+@router.put("/me")
+async def update_profile(
+    payload: ProfileUpdateRequest,
+    current_user: dict = Depends(require_auth),
+):
+    """Update user profile (custom_name, preferred_language)."""
+    db = get_db()
+
+    update_fields = {}
+    if payload.custom_name is not None:
+        update_fields["custom_name"] = payload.custom_name
+    if payload.preferred_language is not None:
+        update_fields["preferred_language"] = payload.preferred_language
+
+    if not update_fields:
+        return {"message": "No hay cambios para actualizar"}
+
+    await db.users.update_one(
+        {"_id": ObjectId(current_user["sub"])},
+        {"$set": update_fields},
+    )
+
+    return {"message": "Perfil actualizado", "fields": list(update_fields.keys())}

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import Link from "next/link"
 import { Loader2, AlertCircle } from "lucide-react"
+import { api } from "@/lib/api"
 
 function validateEmail(email: string): string | null {
   if (!email) return null
@@ -41,8 +42,7 @@ export default function ForgotPasswordPage() {
     setError("")
 
     try {
-      // TODO: Conectar a POST /api/auth/forgot-password cuando el backend esté listo
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await api.forgotPassword(email)
       setSubmitted(true)
     } catch {
       setError("Uy, algo falló. Intentá de nuevo")
