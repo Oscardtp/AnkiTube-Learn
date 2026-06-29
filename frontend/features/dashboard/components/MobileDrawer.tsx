@@ -11,6 +11,7 @@ interface MobileDrawerProps {
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/discover", label: "Descubrir", icon: "explore" },
   { href: "/my-flashcards", label: "Biblioteca", icon: "library_books" },
   { href: "/profile", label: "Mi perfil", icon: "person" },
 ]

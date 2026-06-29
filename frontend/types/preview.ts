@@ -24,4 +24,5 @@ export interface DeckData {
   model_used: string;
   total_cards: number;
   is_saved?: boolean;
+  created_at?: string;
 }

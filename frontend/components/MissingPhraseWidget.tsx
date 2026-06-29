@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MessageSquarePlus, Send, Loader2, CheckCircle2, ChevronDown } from "lucide-react"
+import { PlusCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { api } from "@/lib/api"
 
 interface MissingPhraseWidgetProps {
@@ -9,8 +9,8 @@ interface MissingPhraseWidgetProps {
 }
 
 export default function MissingPhraseWidget({ deckId }: MissingPhraseWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const [phrase, setPhrase] = useState("")
+  const [timestamp, setTimestamp] = useState("")
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
@@ -19,64 +19,74 @@ export default function MissingPhraseWidget({ deckId }: MissingPhraseWidgetProps
 
     setLoading(true)
     try {
-      await api.addCard(deckId, phrase.trim())
+      const ts = timestamp.trim() ? parseTimestamp(timestamp.trim()) : undefined
+      await api.addCard(deckId, phrase.trim(), ts)
       setSubmitted(true)
       setPhrase("")
-      setTimeout(() => {
-        setSubmitted(false)
-        setIsOpen(false)
-      }, 2500)
+      setTimestamp("")
+      setTimeout(() => setSubmitted(false), 2500)
     } catch {
-      // Silently fail - widget is non-critical
+      // Silently fail
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="mt-6">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition-colors font-medium mx-auto"
-      >
-        <MessageSquarePlus className="w-4 h-4" />
-        Faltó alguna frase
-        <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
-        />
-      </button>
+  function parseTimestamp(ts: string): number | undefined {
+    const parts = ts.split(":").map(Number)
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1]
+    }
+    if (parts.length === 1 && !isNaN(parts[0])) {
+      return parts[0]
+    }
+    return undefined
+  }
 
-      {isOpen && (
-        <div className="mt-4 max-w-md mx-auto animate-in slide-in-from-top-2 duration-200">
-          {submitted ? (
-            <div className="flex items-center gap-2 justify-center p-4 bg-emerald-50 rounded-xl text-emerald-700 text-sm font-medium">
-              <CheckCircle2 className="w-5 h-5" />
-              ¡Gracias! La frase fue agregada.
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={phrase}
-                onChange={(e) => setPhrase(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                placeholder="Escribí la frase que faltó..."
-                className="flex-1 bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                disabled={loading}
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={loading || !phrase.trim()}
-                className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center hover:opacity-90 transition-all disabled:opacity-50 shrink-0"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          )}
+  return (
+    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <PlusCircle className="w-4 h-4 text-[#1A56DB]" />
+        <span className="text-[13px] text-gray-500 font-medium">
+          ¿Faltó alguna frase del video?
+        </span>
+      </div>
+
+      {submitted ? (
+        <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl text-emerald-700 text-sm font-medium">
+          <CheckCircle2 className="w-4 h-4" />
+          ¡Gracias! La frase fue agregada.
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={phrase}
+            onChange={(e) => setPhrase(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            placeholder="Ej: I've been meaning to tell you"
+            className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#1A56DB] transition-colors"
+            disabled={loading}
+          />
+          <input
+            type="text"
+            value={timestamp}
+            onChange={(e) => setTimestamp(e.target.value)}
+            placeholder="Ej: 2:34"
+            className="w-20 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#1A56DB] transition-colors"
+            disabled={loading}
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !phrase.trim()}
+            className="bg-[#1A56DB] text-white text-[13px] font-semibold px-3.5 py-2 rounded-xl hover:bg-[#1648C2] transition-all disabled:opacity-50 shrink-0"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "Añadir"
+            )}
+          </button>
         </div>
       )}
     </div>

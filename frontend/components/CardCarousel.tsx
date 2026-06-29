@@ -8,9 +8,11 @@ import type { Card } from "@/types/preview"
 interface CardCarouselProps {
   cards: Card[]
   audioBaseUrl?: string
+  excludedCards?: string[]
+  onToggleExclusion?: (cardFront: string) => void
 }
 
-export default function CardCarousel({ cards, audioBaseUrl }: CardCarouselProps) {
+export default function CardCarousel({ cards, audioBaseUrl, excludedCards = [], onToggleExclusion }: CardCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedCards, setSelectedCards] = useState<Set<number>>(new Set())
   const touchStartX = useRef(0)
@@ -75,19 +77,23 @@ export default function CardCarousel({ cards, audioBaseUrl }: CardCarouselProps)
           isSelected={selectedCards.has(currentIndex)}
           onToggleSelection={toggleCardSelection}
           showSelection={selectedCards.size > 0}
+          isExcluded={excludedCards.includes(cards[currentIndex]?.front ?? "")}
+          onToggleExclusion={onToggleExclusion ? () => onToggleExclusion(cards[currentIndex]?.front ?? "") : undefined}
         />
       </div>
 
       {/* Navigation dots */}
       <div className="flex items-center justify-center gap-1.5 mt-6">
-        {cards.map((_, idx) => (
+        {cards.map((card, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentIndex(idx)}
-            title={`Ir a tarjeta ${idx + 1}`}
+            title={`Ir a tarjeta ${idx + 1}${excludedCards.includes(card.front) ? " (excluida)" : ""}`}
             className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
               idx === currentIndex
                 ? "bg-[#1A56DB] scale-125"
+                : excludedCards.includes(card.front)
+                ? "bg-error/40"
                 : selectedCards.has(idx)
                 ? "bg-primary"
                 : idx < currentIndex
@@ -147,6 +153,11 @@ export default function CardCarousel({ cards, audioBaseUrl }: CardCarouselProps)
         {selectedCards.size > 0 && (
           <span className="text-sm text-on-surface-variant font-medium">
             {selectedCards.size} seleccionada{selectedCards.size !== 1 ? "s" : ""}
+          </span>
+        )}
+        {excludedCards.length > 0 && (
+          <span className="text-sm text-error font-medium">
+            {excludedCards.length} excluida{excludedCards.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>

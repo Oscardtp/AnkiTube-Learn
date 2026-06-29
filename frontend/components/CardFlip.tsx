@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { Volume2, BookOpen, MessageSquare, Quote, Check } from "lucide-react"
+import DeckCardToggle from "./DeckCardToggle"
 
 interface CardData {
   front: string
@@ -24,6 +25,8 @@ interface CardFlipProps {
   isSelected?: boolean
   onToggleSelection?: (index: number) => void
   showSelection?: boolean
+  isExcluded?: boolean
+  onToggleExclusion?: () => void
 }
 
 function formatTimestamp(seconds: number): string {
@@ -165,7 +168,9 @@ export default function CardFlip({
   audioBaseUrl,
   isSelected = false,
   onToggleSelection,
-  showSelection = false
+  showSelection = false,
+  isExcluded = false,
+  onToggleExclusion,
 }: CardFlipProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -229,10 +234,10 @@ export default function CardFlip({
   }
 
   return (
-    <div className={`w-full max-w-2xl mx-auto ${showSelection && !isSelected ? "opacity-60" : ""}`}>
+    <div className={`w-full max-w-2xl mx-auto ${showSelection && !isSelected ? "opacity-60" : ""} ${isExcluded ? "opacity-50" : ""}`}>
       {/* Card container with perspective */}
       <div
-        className={`relative w-full cursor-pointer ${isSelected ? "border-2 border-primary rounded-3xl" : ""}`}
+        className={`relative w-full cursor-pointer ${isSelected ? "border-2 border-primary rounded-3xl" : ""} ${isExcluded ? "ring-2 ring-error/30 rounded-3xl" : ""}`}
         style={{ perspective: "1000px" }}
         onClick={handleFlip}
       >
@@ -248,6 +253,13 @@ export default function CardFlip({
           >
             {isSelected && <Check className="w-4 h-4 text-white" />}
           </button>
+        )}
+
+        {/* Exclusion toggle */}
+        {onToggleExclusion && (
+          <div className="absolute top-4 left-4 z-20">
+            <DeckCardToggle isExcluded={isExcluded} onToggle={onToggleExclusion} />
+          </div>
         )}
 
         {/* CSS Grid Overlay: both faces share the same grid cell */}

@@ -29,6 +29,7 @@ export function GeneratorBar({ decks, onDuplicateDetected }: GeneratorBarProps) 
     generating, generationStatus, generationError, setGenerationError,
     generatedDeckId,
     handleGenerate,
+    cancelGenerator,
     resetGenerator,
   } = useGenerator(decks, onDuplicateDetected)
 
@@ -76,9 +77,16 @@ export function GeneratorBar({ decks, onDuplicateDetected }: GeneratorBarProps) 
               <div className="mb-4 p-3 bg-primary/5 rounded-xl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm font-semibold text-primary">
+                  <span className="text-sm font-semibold text-primary flex-1">
                     {GENERATION_MESSAGES[generationStatus]}
                   </span>
+                  <button
+                    onClick={cancelGenerator}
+                    className="text-xs text-on-surface-variant/60 hover:text-error transition-colors px-2 py-1 rounded-lg hover:bg-error/5"
+                    aria-label="Cancelar generación"
+                  >
+                    Cancelar
+                  </button>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {(["extracting", "analyzing", "generating"] as const).map((step, i) => {
@@ -89,7 +97,7 @@ export function GeneratorBar({ decks, onDuplicateDetected }: GeneratorBarProps) 
                     return (
                       <div key={step} className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          isDone ? "bg-primary" : isCurrent ? "bg-primary scale-125" : "bg-primary/20"
+                          isDone ? "bg-primary" : isCurrent ? "bg-primary scale-125 animate-pulse" : "bg-primary/20"
                         }`} />
                         {i < 2 && (
                           <div className={`w-5 h-0.5 rounded transition-all duration-300 ${
