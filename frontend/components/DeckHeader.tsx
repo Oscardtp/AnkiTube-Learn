@@ -1,38 +1,60 @@
 "use client"
 
 import type { DeckData } from "@/types/preview"
+import { Sparkles, Clock } from "lucide-react"
 
 interface DeckHeaderProps {
   deck: DeckData
   isAuthenticated: boolean
   customName?: string
+  createdAt?: string
 }
 
-const CEFR_COLORS: Record<string, { bg: string; text: string }> = {
-  A1: { bg: "bg-surface-container-high", text: "text-on-surface-variant" },
-  A2: { bg: "bg-surface-container-high", text: "text-on-surface-variant" },
-  B1: { bg: "bg-[#E1F5EE]", text: "text-[#0F6E56]" },
-  B2: { bg: "bg-[#E1F5EE]", text: "text-[#0F6E56]" },
-  C1: { bg: "bg-[#EEEDFE]", text: "text-[#5B4FCF]" },
-  C2: { bg: "bg-[#EEEDFE]", text: "text-[#5B4FCF]" },
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return ""
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "ahora mismo"
+  if (mins < 60) return `hace ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `hace ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days}d`
 }
 
-export default function DeckHeader({ deck, isAuthenticated, customName }: DeckHeaderProps) {
-  const colors = CEFR_COLORS[deck.level] || CEFR_COLORS.A1
-
+export default function DeckHeader({ deck, isAuthenticated, customName, createdAt }: DeckHeaderProps) {
   return (
-    <div className="mb-8">
-      <h1 className="text-xl md:text-2xl font-extrabold text-on-surface mb-3 leading-tight">
+    <div className="mb-6">
+      {/* Badges row */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#E6F1FB] text-[#0C447C]">
+          {deck.level}
+        </span>
+        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+          {deck.total_cards} tarjetas
+        </span>
+        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#EAF3DE] text-[#27500A] flex items-center gap-1">
+          <Sparkles className="w-3 h-3" />
+          {deck.model_used || "Gemini Flash"}
+        </span>
+      </div>
+
+      {/* Title */}
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight mb-1.5">
         {isAuthenticated && customName
           ? `${customName}, tu mazo está listo`
           : deck.video_title}
       </h1>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-on-surface-variant">
-        <span className={`${colors.bg} ${colors.text} px-3 py-1 rounded-full text-xs font-bold`}>
-          {deck.level}
-        </span>
-        <span>{deck.total_cards} tarjetas</span>
-        <span className="text-outline">·</span>
+
+      {/* Subtitle */}
+      <div className="flex items-center gap-2 text-[13px] text-gray-400">
+        {createdAt && (
+          <>
+            <Clock className="w-3 h-3" />
+            <span>Generado {timeAgo(createdAt)}</span>
+            <span className="w-[3px] h-[3px] bg-gray-300 rounded-full" />
+          </>
+        )}
         <span className="capitalize">{deck.context}</span>
       </div>
     </div>

@@ -1,13 +1,13 @@
 "use client"
 
-import { Download, Loader2, Plus, BookOpen } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Download, Loader2, BookOpen, Bookmark, BookmarkCheck } from "lucide-react"
 
 interface ActionButtonsProps {
   downloading: boolean
   onDownload: () => void
   onStudy: () => void
-  selectedCount: number
+  onBookmark?: () => void
+  isBookmarked?: boolean
   isAuthenticated: boolean
 }
 
@@ -15,48 +15,52 @@ export default function ActionButtons({
   downloading,
   onDownload,
   onStudy,
-  selectedCount,
+  onBookmark,
+  isBookmarked = false,
   isAuthenticated,
 }: ActionButtonsProps) {
-  const router = useRouter()
-
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+    <div className="flex gap-2">
+      {/* Primary: Estudiar ahora */}
+      <button
+        onClick={onStudy}
+        className="flex-[2] flex items-center justify-center gap-2 bg-[#1A56DB] text-white px-5 py-3 rounded-xl font-semibold text-sm hover:bg-[#1648C2] transition-all active:scale-[0.98]"
+      >
+        <BookOpen className="w-4 h-4" />
+        Estudiar ahora
+      </button>
+
+      {/* Secondary: Descargar */}
       <button
         onClick={onDownload}
         disabled={downloading}
-        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-container text-white px-8 py-4 rounded-full font-bold text-base hover:opacity-90 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50"
+        className="flex-[1.5] flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-5 py-3 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all active:scale-[0.98] disabled:opacity-50"
       >
         {downloading ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             Descargando...
           </>
         ) : (
           <>
-            <Download className="w-5 h-5" />
-            {selectedCount > 0
-              ? `Descargar seleccionadas (${selectedCount})`
-              : "Descargar mazo"}
+            <Download className="w-4 h-4" />
+            Descargar .apkg
           </>
         )}
       </button>
 
-      <button
-        onClick={onStudy}
-        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-surface-container-high text-on-surface px-8 py-4 rounded-full font-bold text-base hover:bg-surface-container-highest transition-all active:scale-[0.98]"
-      >
-        <BookOpen className="w-5 h-5" />
-        Estudiar aquí
-      </button>
-
-      {isAuthenticated && (
+      {/* Icon: Bookmark (authenticated only) */}
+      {isAuthenticated && onBookmark && (
         <button
-          onClick={() => router.push("/dashboard")}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 text-on-surface-variant font-medium px-6 py-4 rounded-full hover:text-primary transition-colors"
+          onClick={onBookmark}
+          title={isBookmarked ? "Guardado en Mis mazos" : "Guardar en Mis mazos"}
+          className="flex items-center justify-center w-12 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          Generar otro
+          {isBookmarked ? (
+            <BookmarkCheck className="w-4 h-4 text-[#1A56DB]" />
+          ) : (
+            <Bookmark className="w-4 h-4 text-gray-400" />
+          )}
         </button>
       )}
     </div>

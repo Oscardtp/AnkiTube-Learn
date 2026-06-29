@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Sparkles } from "lucide-react"
 import { DuplicateDeckModal } from "@/components/DuplicateDeckModal"
 import { useDashboardData } from "@/features/dashboard/hooks/useDashboardData"
 import { useDeckFilters } from "@/features/dashboard/hooks/useDeckFilters"
@@ -78,6 +79,24 @@ export default function DashboardPage() {
 
       <main id="main-content" className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full" tabIndex={-1}>
         <DashboardHeader user={user} pendingCards={urgentDeck?.total} />
+
+        {user && !user.setup_wizard_completed && (
+          <div className="mt-3">
+            <button
+              onClick={() => router.push("/wizard")}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:shadow-md transition-all text-left group"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface">Personaliza tu experiencia</p>
+                <p className="text-xs text-on-surface-variant truncate">Configura tu nivel, objetivos y preferencias</p>
+              </div>
+              <span className="text-xs font-semibold text-primary shrink-0">→</span>
+            </button>
+          </div>
+        )}
 
         {isExplorador && <div className="mt-3"><UpsellBar /></div>}
 

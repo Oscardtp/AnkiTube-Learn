@@ -89,6 +89,17 @@ export function DashboardNavbar({ user, onLogout, onGenerate }: DashboardNavbarP
           </Link>
         </div>
 
+        {/* Nav links — desktop */}
+        <div className="hidden md:flex items-center gap-1">
+          <Link
+            href="/discover"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-colors"
+          >
+            <MaterialIcon name="explore" className="text-base" />
+            <span>Descubrir</span>
+          </Link>
+        </div>
+
         {/* CTA — always visible */}
         <button
           onClick={onGenerate}

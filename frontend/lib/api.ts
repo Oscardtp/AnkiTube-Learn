@@ -29,6 +29,7 @@ interface GenerateResponse {
   cards: Card[];
   model_used: string;
   total_cards: number;
+  created_at?: string;
 }
 
 interface UserResponse {
@@ -41,6 +42,7 @@ interface UserResponse {
   total_cards?: number;
   level?: string;
   custom_name?: string;
+  study_skills?: string[];
 }
 
 interface DeckListResponse {
@@ -99,6 +101,56 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  generateDeckSSE: async (
+    data: GenerateRequest,
+    onEvent: (event: string, payload: Record<string, unknown>) => void,
+    signal?: AbortSignal,
+  ): Promise<void> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+    const response = await fetch(`${API_URL}/api/decks/generate-stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+      signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new APIError(
+        response.status,
+        error.detail || error.message || `Error ${response.status}`
+      );
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop()!;
+
+      for (const frame of frames) {
+        const eventMatch = frame.match(/^event: (.+)$/m);
+        const dataMatch = frame.match(/^data: (.+)$/m);
+        if (eventMatch && dataMatch) {
+          try {
+            onEvent(eventMatch[1], JSON.parse(dataMatch[1]));
+          } catch {
+            // Skip malformed events
+          }
+        }
+      }
+    }
+  },
+
   getDeck: (deckId: string): Promise<GenerateResponse> =>
     fetchAPI(`/api/decks/${deckId}`),
 
@@ -152,6 +204,19 @@ export const api = {
     fetchAPI("/api/auth/me", {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+
+  // Wizard
+  updateWizard: (answers: {
+    level: string;
+    goal: string;
+    daily_minutes: number;
+    content_type: string;
+    cards_per_day: number;
+  }): Promise<{ message: string; setup_wizard_completed: boolean }> =>
+    fetchAPI("/api/auth/wizard", {
+      method: "PATCH",
+      body: JSON.stringify(answers),
     }),
 
   // Feedback — maps frontend fields to backend contract
@@ -255,6 +320,97 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
+  // Discover
+  getDiscoverVideos: (
+    tag?: string | null,
+    level?: string | null,
+    page?: number,
+  ): Promise<{
+    videos: Array<{
+      id: string
+      video_id: string
+      title: string
+      thumbnail: string
+      channel: string
+      duration_seconds: number
+      tags: string[]
+      level: string
+      description: string | null
+    }>
+    total: number
+    page: number
+    limit: number
+  }> => {
+    const params = new URLSearchParams()
+    if (tag) params.append("tag", tag)
+    if (level) params.append("level", level)
+    if (page) params.append("page", String(page))
+    const qs = params.toString()
+    return fetchAPI(`/api/discover/videos${qs ? `?${qs}` : ""}`)
+  },
+
+  getDiscoverTags: (): Promise<{
+    tags: Array<{ name: string; count: number }>
+  }> => fetchAPI("/api/discover/tags"),
+
+  // Study
+  getStudyStatus: (deckId: string): Promise<{
+    deck_id: string
+    video_title: string
+    video_id: string
+    total_cards: number
+    due_cards: number
+    new_cards: number
+    review_cards: number
+    streak_days: number
+    last_studied: string | null
+    cards: Array<{
+      card_index: number
+      front: string
+      back: string
+      keyword: string
+      grammar_note: string
+      context_note: string
+      colombian_note: string
+      timestamp_start: number
+      timestamp_end: number
+      audio_filename: string
+      card_type: string
+      sm2_data: {
+        interval: number
+        easiness: number
+        reps: number
+        due_date: string | null
+        last_reviewed: string | null
+      } | null
+    }>
+  }> => fetchAPI(`/api/decks/${deckId}/study-status`),
+
+  submitStudyResults: (
+    deckId: string,
+    results: Array<{ card_id: string; quality: number }>,
+    sessionDurationSeconds: number,
+  ): Promise<{ message: string; streak_days: number }> =>
+    fetchAPI(`/api/decks/${deckId}/study-results`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        deck_id: deckId,
+        results,
+        session_duration_seconds: sessionDurationSeconds,
+      }),
+    }),
+
+  getStudySummary: (deckId: string): Promise<{
+    total_reviewed: number
+    again_count: number
+    hard_count: number
+    good_count: number
+    easy_count: number
+    avg_quality: number
+    session_duration_seconds: number
+    streak_days: number
+  }> => fetchAPI(`/api/decks/${deckId}/study-summary`),
+
   // Download
   downloadDeck: async (deckId: string): Promise<Blob> => {
     const response = await fetch(`${API_URL}/api/decks/${deckId}/download`, {
@@ -273,4 +429,13 @@ export const api = {
 
     return response.blob();
   },
+
+  getStudySkills: (): Promise<{ skills: string[] }> =>
+    fetchAPI("/api/auth/study-skills"),
+
+  saveStudySkills: (skills: string[]): Promise<{ message: string; skills: string[] }> =>
+    fetchAPI("/api/auth/study-skills", {
+      method: "PUT",
+      body: JSON.stringify({ skills }),
+    }),
 };

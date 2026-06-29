@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useNotifications } from "@/context/NotificationContext"
 import { api } from "@/lib/api"
 import type { Deck } from "../types"
@@ -16,9 +17,9 @@ export type GenerationStatus =
 
 export const GENERATION_MESSAGES: Record<GenerationStatus, string> = {
   idle: "",
-  extracting: "Buscando ese video...",
-  analyzing: "Analizando el contenido...",
-  generating: "Armando tu mazo con IA...",
+  extracting: "Buscando el video...",
+  analyzing: "Video encontrado, analizando...",
+  generating: "Generando tus tarjetas...",
   completed: "Listo parce, quedó brutal",
   error: "Uy, algo falló",
 }
@@ -36,11 +37,13 @@ interface UseGeneratorReturn {
   setGenerationError: (v: string) => void
   generatedDeckId: string | null
   handleGenerate: () => Promise<void>
+  cancelGenerator: () => void
   resetGenerator: () => void
 }
 
 export function useGenerator(decks: Deck[], onDuplicateDetected?: (deck: Deck) => void): UseGeneratorReturn {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { error: notifyError, success } = useNotifications()
   const [urlInput, setUrlInput] = useState("")
   const [level, setLevel] = useState("B1")
@@ -49,28 +52,31 @@ export function useGenerator(decks: Deck[], onDuplicateDetected?: (deck: Deck) =
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>("idle")
   const [generationError, setGenerationError] = useState("")
   const [generatedDeckId, setGeneratedDeckId] = useState<string | null>(null)
-  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     return () => {
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+      abortControllerRef.current?.abort()
     }
   }, [])
 
-  const advanceStatus = useCallback((from: GenerationStatus, to: GenerationStatus, delay: number) => {
-    statusTimerRef.current = setTimeout(() => {
-      setGenerationStatus(to)
-    }, delay)
-  }, [])
-
   const resetGenerator = useCallback(() => {
-    if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
     setGenerating(false)
     setGenerationStatus("idle")
     setGenerationError("")
     setGeneratedDeckId(null)
     setUrlInput("")
   }, [setUrlInput])
+
+  const cancelGenerator = useCallback(() => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    setGenerating(false)
+    setGenerationStatus("idle")
+    setGenerationError("")
+  }, [])
 
   const handleGenerate = useCallback(async () => {
     if (!urlInput.trim()) return
@@ -106,29 +112,61 @@ export function useGenerator(decks: Deck[], onDuplicateDetected?: (deck: Deck) =
     setGeneratedDeckId(null)
     setGenerationStatus("extracting")
 
-    advanceStatus("extracting", "analyzing", 2000)
-    advanceStatus("analyzing", "generating", 4500)
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     try {
-      const data = await api.generateDeck({
-        youtube_url: urlInput,
-        level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
-        context,
-      })
-
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
-      setGenerationStatus("completed")
-      setGeneratedDeckId(data.deck_id)
-      success("Qué nota, ya está listo tu mazo")
+      await api.generateDeckSSE(
+        {
+          youtube_url: urlInput,
+          level: level as "A1" | "A2" | "B1" | "B2" | "C1" | "C2",
+          context,
+        },
+        (event, data) => {
+          if (event === "transcript_started") {
+            setGenerationStatus("extracting")
+          } else if (event === "transcript_complete") {
+            setGenerationStatus("analyzing")
+          } else if (event === "ai_started") {
+            setGenerationStatus("generating")
+          } else if (event === "ai_provider_result") {
+            if (data.status === "failed") {
+              // Show retry message briefly
+              setGenerationError("Probando con otra fuente...")
+              setTimeout(() => setGenerationError(""), 2000)
+            }
+          } else if (event === "deck_saved") {
+            // Deck is saved, wait for complete
+          } else if (event === "generation_complete") {
+            setGenerationStatus("completed")
+            setGeneratedDeckId(data.deck_id as string)
+            success("Qué nota, ya está listo tu mazo")
+            // Invalidate queries so dashboard shows new deck
+            queryClient.invalidateQueries({ queryKey: ["myDecks"] })
+            queryClient.invalidateQueries({ queryKey: ["currentUser"] })
+          } else if (event === "generation_error") {
+            setGenerationStatus("error")
+            setGenerationError(data.detail as string || "Algo salió mal")
+            notifyError(data.detail as string || "Algo salió mal")
+            setGenerating(false)
+          }
+        },
+        abortController.signal,
+      )
     } catch (err: unknown) {
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // User cancelled — don't show error
+        return
+      }
       const message = err instanceof Error ? err.message : "Algo salió mal"
       setGenerationStatus("error")
       setGenerationError(message)
       notifyError(message)
       setGenerating(false)
+    } finally {
+      abortControllerRef.current = null
     }
-  }, [urlInput, level, context, decks, onDuplicateDetected, router, notifyError, success, advanceStatus])
+  }, [urlInput, level, context, decks, onDuplicateDetected, router, notifyError, success, queryClient])
 
   return {
     urlInput, setUrlInput,
@@ -137,6 +175,7 @@ export function useGenerator(decks: Deck[], onDuplicateDetected?: (deck: Deck) =
     generating, generationStatus, generationError, setGenerationError,
     generatedDeckId,
     handleGenerate,
+    cancelGenerator,
     resetGenerator,
   }
 }

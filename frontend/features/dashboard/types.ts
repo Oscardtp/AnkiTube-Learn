@@ -8,6 +8,7 @@ export interface User {
   total_cards?: number
   level?: string
   name?: string
+  setup_wizard_completed?: boolean
 }
 
 export interface UserStats {
