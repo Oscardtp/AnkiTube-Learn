@@ -1,0 +1,202 @@
+[
+  {
+    "video_id": "dQw4w9WgXcQ",
+    "title": "English Speaking Practice - Daily Conversations",
+    "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+    "channel": "English with Lucy",
+    "duration_seconds": 900,
+    "tags": ["general"],
+    "level": "B1",
+    "description": "Práctica de conversación diaria en inglés con situaciones comunes"
+  },
+  {
+    "video_id": "sVx1mJDeUjY",
+    "title": "How to Handle Angry Customers - BPO Training",
+    "thumbnail": "https://img.youtube.com/vi/sVx1mJDeUjY/mqdefault.jpg",
+    "channel": "Josh Brentano",
+    "duration_seconds": 720,
+    "tags": ["bpo"],
+    "level": "B2",
+    "description": "Estrategias para manejar clientes enojados en un call center"
+  },
+  {
+    "video_id": "kCDEz8dZOgY",
+    "title": "Phone Etiquette Tips for Customer Service",
+    "thumbnail": "https://img.youtube.com/vi/kCDEz8dZOgY/mqdefault.jpg",
+    "channel": "Business English Pod",
+    "duration_seconds": 600,
+    "tags": ["bpo"],
+    "level": "B1",
+    "description": "Etiqueta telefónica y frases útiles para servicio al cliente"
+  },
+  {
+    "video_id": "h3bAlfJnX0Y",
+    "title": "BPO Call Center Script - Complete Guide",
+    "thumbnail": "https://img.youtube.com/vi/h3bAlfJnX0Y/mqdefault.jpg",
+    "channel": "Accent Care",
+    "duration_seconds": 1080,
+    "tags": ["bpo"],
+    "level": "A2",
+    "description": "Guía completa de scripts para call centers BPO"
+  },
+  {
+    "video_id": "Vp2vTnCf9pA",
+    "title": "How to Sound Professional on the Phone",
+    "thumbnail": "https://img.youtube.com/vi/Vp2vTnCf9pA/mqdefault.jpg",
+    "channel": "English for IT",
+    "duration_seconds": 540,
+    "tags": ["bpo", "general"],
+    "level": "B1",
+    "description": "Cómo sonar profesional en llamadas telefónicas de trabajo"
+  },
+  {
+    "video_id": "pEfrdAtAmqk",
+    "title": "Learn JavaScript in One Hour",
+    "thumbnail": "https://img.youtube.com/vi/pEfrdAtAmqk/mqdefault.jpg",
+    "channel": "Programming with Mosh",
+    "duration_seconds": 3600,
+    "tags": ["tech"],
+    "level": "B2",
+    "description": "Tutorial intensivo de JavaScript para principiantes"
+  },
+  {
+    "video_id": "rfscVS0vtbw",
+    "title": "Python Tutorial for Beginners - Full Course",
+    "thumbnail": "https://img.youtube.com/vi/rfscVS0vtbw/mqdefault.jpg",
+    "channel": "Programming with Mosh",
+    "duration_seconds": 6000,
+    "tags": ["tech"],
+    "level": "B1",
+    "description": "Curso completo de Python para principiantes"
+  },
+  {
+    "video_id": "UB1O30fZ-WE",
+    "title": "HTML and CSS Full Course for Beginners",
+    "thumbnail": "https://img.youtube.com/vi/UB1O30fZ-WE/mqdefault.jpg",
+    "channel": "SuperSimpleDev",
+    "duration_seconds": 2700,
+    "tags": ["tech"],
+    "level": "A2",
+    "description": "Curso completo de HTML y CSS para crear páginas web"
+  },
+  {
+    "video_id": "qz0aGYrrlhU",
+    "title": "Node.js Tutorial for Beginners",
+    "thumbnail": "https://img.youtube.com/vi/qz0aGYrrlhU/mqdefault.jpg",
+    "channel": "Programming with Mosh",
+    "duration_seconds": 3300,
+    "tags": ["tech"],
+    "level": "B2",
+    "description": "Aprende Node.js desde cero con ejemplos prácticos"
+  },
+  {
+    "video_id": "Tn6-PIqc4UM",
+    "title": "React Tutorial for Beginners",
+    "thumbnail": "https://img.youtube.com/vi/Tn6-PIqc4UM/mqdefault.jpg",
+    "channel": "Programming with Mosh",
+    "duration_seconds": 4200,
+    "tags": ["tech"],
+    "level": "B2",
+    "description": "Tutorial completo de React para principiantes"
+  },
+  {
+    "video_id": "JGwWNGJdvx8",
+    "title": "Top 10 Games of 2024 You Need to Play",
+    "thumbnail": "https://img.youtube.com/vi/JGwWNGJdvx8/mqdefault.jpg",
+    "channel": "IGN",
+    "duration_seconds": 1200,
+    "tags": ["gaming"],
+    "level": "B1",
+    "description": "Los mejores videojuegos del año para jugar en inglés"
+  },
+  {
+    "video_id": "8X2oE4KxQKI",
+    "title": "How to Build a Gaming PC - Step by Step",
+    "thumbnail": "https://img.youtube.com/vi/8X2oE4KxQKI/mqdefault.jpg",
+    "channel": "Linus Tech Tips",
+    "duration_seconds": 1500,
+    "tags": ["gaming", "tech"],
+    "level": "B2",
+    "description": "Guía paso a paso para armar tu propia PC gaming"
+  },
+  {
+    "video_id": "lG5JtGdGz0A",
+    "title": "Best Gaming Headsets Review 2024",
+    "thumbnail": "https://img.youtube.com/vi/lG5JtGdGz0A/mqdefault.jpg",
+    "channel": "Hardware Canucks",
+    "duration_seconds": 900,
+    "tags": ["gaming"],
+    "level": "B1",
+    "description": "Review y comparación de los mejores audífonos para gaming"
+  },
+  {
+    "video_id": "fJ9rUzIMcZQ",
+    "title": "Minecraft Tips and Tricks in English",
+    "thumbnail": "https://img.youtube.com/vi/fJ9rUzIMcZQ/mqdefault.jpg",
+    "channel": "CaptainSparklez",
+    "duration_seconds": 1800,
+    "tags": ["gaming"],
+    "level": "A2",
+    "description": "Consejos y trucos de Minecraft explicados en inglés simple"
+  },
+  {
+    "video_id": "sDBY4IopE6o",
+    "title": "How to Travel Europe on a Budget",
+    "thumbnail": "https://img.youtube.com/vi/sDBY4IopE6o/mqdefault.jpg",
+    "channel": "Vagabrothers",
+    "duration_seconds": 840,
+    "tags": ["travel"],
+    "level": "B1",
+    "description": "Consejos para viajar por Europa con presupuesto limitado"
+  },
+  {
+    "video_id": "L-0V3HbqO7Y",
+    "title": "Useful English Phrases for Hotels",
+    "thumbnail": "https://img.youtube.com/vi/L-0V3HbqO7Y/mqdefault.jpg",
+    "channel": "English with TV Series",
+    "duration_seconds": 660,
+    "tags": ["travel"],
+    "level": "A2",
+    "description": "Frases útiles en inglés para hoteles y viajes"
+  },
+  {
+    "video_id": "r1Y3TMEbVYI",
+    "title": "Travel Vlog - Exploring Tokyo, Japan",
+    "thumbnail": "https://img.youtube.com/vi/r1Y3TMEbVYI/mqdefault.jpg",
+    "channel": "Kara and Nate",
+    "duration_seconds": 1200,
+    "tags": ["travel"],
+    "level": "B1",
+    "description": "Vlog de viaje explorando Tokio, Japón"
+  },
+  {
+    "video_id": "4rdPfLb0JnM",
+    "title": "How to Ask for Directions in English",
+    "thumbnail": "https://img.youtube.com/vi/4rdPfLb0JnM/mqdefault.jpg",
+    "channel": "mmmEnglish",
+    "duration_seconds": 480,
+    "tags": ["travel", "general"],
+    "level": "A1",
+    "description": "Cómo pedir direcciones en inglés cuando viajas"
+  },
+  {
+    "video_id": "c6KfBpV2YlQ",
+    "title": "Everyday English Idioms You Should Know",
+    "thumbnail": "https://img.youtube.com/vi/c6KfBpV2YlQ/mqdefault.jpg",
+    "channel": "EngVid",
+    "duration_seconds": 720,
+    "tags": ["general"],
+    "level": "B1",
+    "description": "Modismos comunes del inglés diario que deberías conocer"
+  },
+  {
+    "video_id": "ApWD8NzFBWQ",
+    "title": "How to Introduce Yourself in English",
+    "thumbnail": "https://img.youtube.com/vi/ApWD8NzFBWQ/mqdefault.jpg",
+    "channel": "English Singsing",
+    "duration_seconds": 360,
+    "tags": ["general", "bpo"],
+    "level": "A1",
+    "description": "Cómo presentarte en inglés en situaciones formales e informales"
+  }
+]
