@@ -2,9 +2,12 @@
 JWT auth utilities and FastAPI dependencies.
 """
 
+import base64
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
+import pyotp
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
@@ -81,3 +84,20 @@ async def require_superadmin(
             detail="Acceso denegado",
         )
     return user
+
+
+def generate_totp_secret() -> str:
+    """Generate a random base32 secret for TOTP."""
+    return pyotp.random_base32()
+
+
+def verify_totp(secret: str, code: str) -> bool:
+    """Verify a TOTP code with ±30s tolerance window."""
+    totp = pyotp.TOTP(secret)
+    return totp.verify(code, valid_window=1)
+
+
+def get_totp_uri(secret: str, email: str) -> str:
+    """Generate otpauth:// URI for QR code generation."""
+    totp = pyotp.TOTP(secret)
+    return totp.provisioning_uri(name=email, issuer_name="AnkiTube Learn")

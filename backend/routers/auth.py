@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Request
 from bson import ObjectId
 
 from database import get_db
-from models.user import UserCreate, UserLogin, TokenResponse, UserResponse, ForgotPasswordRequest, ProfileUpdateRequest
+from models.user import UserCreate, UserLogin, TokenResponse, UserResponse, ForgotPasswordRequest, ProfileUpdateRequest, WizardAnswers, StudySkillsUpdate
 from utils.auth import hash_password, verify_password, create_access_token, require_auth
 from utils.rate_limit import limiter
 
@@ -35,6 +35,7 @@ async def register(request: Request, payload: UserCreate):
         "wizard_answers": None,
         "created_at": datetime.utcnow(),
         "deleted_at": None,
+        "study_skills": ["srs"],
     }
 
     result = await db.users.insert_one(user_doc)
@@ -105,6 +106,7 @@ async def login(request: Request, payload: UserLogin):
             total_decks=total_decks,
             total_cards=total_cards,
             custom_name=user.get("custom_name"),
+            study_skills=user.get("study_skills", ["srs"]),
         ),
     )
 
@@ -137,6 +139,7 @@ async def me(current_user: dict = Depends(require_auth)):
         total_decks=total_decks,
         total_cards=total_cards,
         custom_name=user.get("custom_name"),
+        study_skills=user.get("study_skills", ["srs"]),
     )
 
 
@@ -186,3 +189,43 @@ async def update_profile(
     )
 
     return {"message": "Perfil actualizado", "fields": list(update_fields.keys())}
+
+
+@router.patch("/wizard")
+async def update_wizard(
+    payload: WizardAnswers,
+    user: dict = Depends(require_auth),
+):
+    db = get_db()
+
+    await db.users.update_one(
+        {"_id": ObjectId(user["sub"])},
+        {"$set": {
+            "wizard_answers": payload.model_dump(),
+            "setup_wizard_completed": True,
+        }}
+    )
+
+    return {"message": "Configuración guardada", "setup_wizard_completed": True}
+
+
+@router.get("/study-skills")
+async def get_study_skills(current_user: dict = Depends(require_auth)):
+    db = get_db()
+    user = await db.users.find_one({"_id": ObjectId(current_user["sub"]), "deleted_at": None})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {"skills": user.get("study_skills", ["srs"])}
+
+
+@router.put("/study-skills")
+async def update_study_skills(
+    payload: StudySkillsUpdate,
+    current_user: dict = Depends(require_auth),
+):
+    db = get_db()
+    await db.users.update_one(
+        {"_id": ObjectId(current_user["sub"])},
+        {"$set": {"study_skills": payload.skills}},
+    )
+    return {"message": "Habilidades guardadas", "skills": payload.skills}

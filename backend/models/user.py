@@ -24,6 +24,9 @@ class UserInDB(BaseModel):
     wizard_answers: Optional[WizardAnswers] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: Optional[datetime] = None
+    totp_secret: Optional[str] = None
+    totp_enabled: bool = False
+    study_skills: list[str] = Field(default_factory=list)
 
     class Config:
         populate_by_name = True
@@ -61,6 +64,11 @@ class UserResponse(BaseModel):
     total_decks: Optional[int] = None
     total_cards: Optional[int] = None
     custom_name: Optional[str] = None
+    study_skills: list[str] = Field(default_factory=list)
+
+
+class StudySkillsUpdate(BaseModel):
+    skills: list[str]
 
 
 class TokenResponse(BaseModel):

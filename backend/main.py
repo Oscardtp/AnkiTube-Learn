@@ -10,7 +10,8 @@ from slowapi.errors import RateLimitExceeded
 from config import get_settings
 from database import connect_db, disconnect_db
 from utils.rate_limit import limiter
-from routers import auth, decks, feedback, licenses, admin
+from routers import auth, decks, feedback, licenses, admin, study, recommender
+from middleware.admin_security import AdminIPWhitelistMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,6 +63,12 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-2FA-Code"],
 )
 
+# Admin IP whitelist middleware
+app.add_middleware(
+    AdminIPWhitelistMiddleware,
+    allowed_ips=settings.admin_allowed_ips,
+)
+
 
 # Global error handler — never leak stack traces to clients
 @app.exception_handler(Exception)
@@ -79,6 +86,8 @@ app.include_router(decks.router)
 app.include_router(feedback.router)
 app.include_router(licenses.router)
 app.include_router(admin.router)
+app.include_router(study.router)
+app.include_router(recommender.router)
 
 
 @app.get("/health")
