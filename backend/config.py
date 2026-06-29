@@ -52,8 +52,11 @@ class Settings(BaseSettings):
     circuit_breaker_threshold: int = 3
     circuit_breaker_cooldown_seconds: int = 300  # 5 min
 
-    # Superadmin 2FA
-    superadmin_2fa_code: str
+    # Superadmin 2FA (DEPRECATED — use TOTP instead)
+    superadmin_2fa_code: str = ""
+
+    # Admin IP whitelist (comma-separated, empty = no restriction)
+    admin_allowed_ips: str = ""
 
     # Rate limiting
     rate_limit_generate_per_minute: int = 10

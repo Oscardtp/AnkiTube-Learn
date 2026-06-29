@@ -1,14 +1,18 @@
+import asyncio
+import json
 import logging
 from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status, Depends, Request, Response
+from fastapi.responses import FileResponse, StreamingResponse
 from bson import ObjectId
 
 from database import get_db
 from models.deck import GenerateRequest, GenerateResponse, DeckPreviewResponse, AddCardRequest, Card
 from services.ai_router import generate_cards
 from services.anki_service import generate_apkg
+from services.audio_service import get_audio_clip
 from utils.auth import get_current_user, require_auth
 from utils.freemium import has_exceeded_daily_limit, get_max_cards_for_role, update_generation_counter
 from utils.rate_limit import limiter
@@ -148,6 +152,165 @@ async def generate_deck(
     )
 
 
+@router.post("/generate-stream", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
+async def generate_deck_stream(
+    request: Request,
+    payload: GenerateRequest,
+    current_user: Optional[dict] = Depends(get_current_user),
+):
+    """
+    SSE endpoint for deck generation with real-time progress events.
+    Returns a stream of Server-Sent Events as the generation progresses.
+    """
+    db = get_db()
+
+    user_role = "user"
+    user_id = None
+    user_doc = None
+
+    if current_user:
+        user_id = current_user["sub"]
+        user_role = current_user.get("role", "user")
+        user_doc = await db.users.find_one({"_id": ObjectId(user_id), "deleted_at": None})
+
+        if user_doc and has_exceeded_daily_limit(user_doc):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Ya generaste tu mazo del día. Vuelve mañana o mejora tu plan para generar sin límites.",
+            )
+
+    async def event_generator():
+        def sse_event(event_name: str, data: dict) -> str:
+            return f"event: {event_name}\ndata: {json.dumps(data)}\n\n"
+
+        # Step 1: Transcript extraction
+        yield sse_event("transcript_started", {"phase": "transcript", "status": "started"})
+
+        try:
+            loop = asyncio.get_event_loop()
+            transcript_data = await loop.run_in_executor(
+                None, lambda: get_transcript(payload.youtube_url, payload.context)
+            )
+        except Exception as e:
+            logger.error(f"Transcript extraction failed: {e}")
+            yield sse_event("generation_error", {
+                "phase": "transcript",
+                "status": "error",
+                "detail": "No pudimos procesar ese video. Verifica que la URL sea válida y el video tenga subtítulos.",
+            })
+            return
+
+        transcript_text = transcript_to_text(transcript_data["transcript"])
+
+        if not transcript_text.strip():
+            yield sse_event("generation_error", {
+                "phase": "transcript",
+                "status": "error",
+                "detail": "Este video no tiene subtítulos disponibles.",
+            })
+            return
+
+        yield sse_event("transcript_complete", {
+            "phase": "transcript",
+            "status": "complete",
+            "video_title": transcript_data["title"],
+            "video_id": transcript_data["video_id"],
+            "video_thumbnail": transcript_data["thumbnail"],
+            "transcript_entries": len(transcript_data["transcript"]),
+        })
+
+        # Step 2: AI generation with SSE callback
+        max_cards = get_max_cards_for_role(user_role)
+        ai_events = []
+
+        async def on_ai_event(event_name, event_data):
+            ai_events.append((event_name, event_data))
+
+        try:
+            cards, model_used = await generate_cards(
+                transcript_text=transcript_text,
+                level=payload.level,
+                context=payload.context,
+                user_role=user_role,
+                max_cards=max_cards,
+                on_event=on_ai_event,
+            )
+        except RuntimeError as e:
+            logger.error(f"AI generation failed for all providers: {e}")
+            yield sse_event("generation_error", {
+                "phase": "ai",
+                "status": "error",
+                "detail": "El servicio de IA no está disponible en este momento. Intenta de nuevo en unos minutos.",
+            })
+            return
+
+        if not cards:
+            yield sse_event("generation_error", {
+                "phase": "ai",
+                "status": "error",
+                "detail": "No se pudieron generar tarjetas para este video. Intenta con otro nivel o video.",
+            })
+            return
+
+        # Emit buffered AI events
+        for event_name, event_data in ai_events:
+            yield sse_event(event_name, event_data)
+
+        # Step 3: Save deck to MongoDB
+        yield sse_event("deck_saving", {"phase": "save", "status": "started"})
+
+        deck_doc = {
+            "user_id": user_id,
+            "anonymous_session_id": payload.anonymous_session_id if not user_id else None,
+            "video_id": transcript_data["video_id"],
+            "video_title": transcript_data["title"],
+            "video_thumbnail": transcript_data["thumbnail"],
+            "level": payload.level,
+            "context": payload.context,
+            "cards": [card.model_dump() for card in cards],
+            "model_used": model_used,
+            "created_at": datetime.utcnow(),
+            "deleted_at": None,
+        }
+
+        result = await db.decks.insert_one(deck_doc)
+        deck_id = str(result.inserted_id)
+
+        yield sse_event("deck_saved", {"phase": "save", "status": "complete", "deck_id": deck_id})
+
+        # Step 4: Update freemium counters
+        if user_id and user_doc:
+            await update_generation_counter(db, user_id, user_doc)
+
+        logger.info(f"Deck generated: {deck_id} | model: {model_used} | cards: {len(cards)} | user: {user_id or 'anonymous'}")
+
+        # Final event with full payload
+        yield sse_event("generation_complete", {
+            "phase": "complete",
+            "status": "done",
+            "deck_id": deck_id,
+            "video_title": transcript_data["title"],
+            "video_thumbnail": transcript_data["thumbnail"],
+            "video_id": transcript_data["video_id"],
+            "level": payload.level,
+            "context": payload.context,
+            "cards": [card.model_dump() for card in cards],
+            "model_used": model_used,
+            "total_cards": len(cards),
+        })
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.get("/user/my-decks")
 async def my_decks(current_user: dict = Depends(require_auth)):
     db = get_db()
@@ -255,6 +418,50 @@ async def download_deck(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/{deck_id}/audio/{card_index}")
+async def get_card_audio(
+    deck_id: str,
+    card_index: int,
+    current_user: dict = Depends(require_auth),
+):
+    """Serve audio clip for a specific card."""
+    db = get_db()
+
+    try:
+        obj_id = ObjectId(deck_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="deck_id inválido")
+
+    deck = await db.decks.find_one({"_id": obj_id, "deleted_at": None})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Mazo no encontrado")
+
+    # Check ownership
+    if deck.get("user_id") != current_user["sub"]:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este mazo")
+
+    if card_index < 0 or card_index >= len(deck.get("cards", [])):
+        raise HTTPException(status_code=400, detail="Índice de tarjeta inválido")
+
+    card = deck["cards"][card_index]
+
+    try:
+        clip_path = await get_audio_clip(
+            deck["video_id"],
+            card["timestamp_start"],
+            card["timestamp_end"],
+            card_index
+        )
+        return FileResponse(
+            path=str(clip_path),
+            media_type="audio/mpeg",
+            filename=f"ankitube_clip_{card_index}.mp3"
+        )
+    except Exception as e:
+        logger.error(f"Audio extraction failed for deck {deck_id}, card {card_index}: {e}")
+        raise HTTPException(status_code=500, detail="Error al extraer audio")
 
 
 @router.post("/{deck_id}/cards/add", response_model=Card)

@@ -372,6 +372,7 @@ async def generate_cards(
     context: str,
     user_role: str,
     max_cards: Optional[int] = None,
+    on_event=None,
 ) -> tuple[list[Card], str]:
     """
     Main entry point for card generation.
@@ -382,6 +383,7 @@ async def generate_cards(
         context: Learning context (general, bpo, etc.)
         user_role: User's role to determine model tier
         max_cards: Override max cards (used for freemium limit)
+        on_event: Optional async callback for SSE events: async def on_event(event_name, data)
 
     Returns:
         (list[Card], model_used_name)
@@ -403,16 +405,30 @@ async def generate_cards(
     logger.info(f"[OPENROUTER] Transcript length: {len(transcript_text)} chars")
     logger.debug(f"[OPENROUTER] Transcript preview: {transcript_text[:200]}...")
 
+    if on_event:
+        await on_event("ai_started", {"phase": "ai", "status": "started"})
+
     # Determine provider order based on user tier + circuit breaker
     primary_provider = TIER_TO_PROVIDER.get(user_role, "flash")
     fallback_order = _get_fallback_order(primary_provider)
 
     last_error: Optional[Exception] = None
+    attempt_number = 0
 
     for provider in fallback_order:
         if _is_circuit_open(provider):
             logger.info(f"Skipping {provider} — circuit breaker open")
             continue
+
+        attempt_number += 1
+
+        if on_event:
+            await on_event("ai_provider_attempt", {
+                "phase": "ai",
+                "status": "attempting",
+                "provider": provider,
+                "attempt": attempt_number,
+            })
 
         try:
             logger.info(f"Calling provider: {provider} (model: {PROVIDER_TO_MODEL[provider]})")
@@ -450,12 +466,31 @@ async def generate_cards(
 
             _record_success(provider)
             logger.info(f"Success — {provider} returned {len(valid_cards)} valid cards")
+
+            if on_event:
+                await on_event("ai_provider_result", {
+                    "phase": "ai",
+                    "status": "success",
+                    "provider": provider,
+                    "cards_generated": len(valid_cards),
+                })
+
             return valid_cards, PROVIDER_TO_MODEL[provider]
 
         except Exception as e:
             logger.error(f"Provider {provider} failed: {e}")
             _record_failure(provider)
             last_error = e
+
+            if on_event:
+                await on_event("ai_provider_result", {
+                    "phase": "ai",
+                    "status": "failed",
+                    "provider": provider,
+                    "error": str(e),
+                    "attempt": attempt_number,
+                })
+
             continue
 
     raise RuntimeError(

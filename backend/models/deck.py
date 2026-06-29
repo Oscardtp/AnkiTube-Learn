@@ -15,6 +15,7 @@ class Card(BaseModel):
     timestamp_end: float
     audio_filename: str = ""
     card_type: Literal["vocabulary", "phrase", "idiom", "grammar_pattern"]
+    sm2_data: Optional[dict] = None  # {interval, easiness, reps, due_date, last_reviewed}
 
 
 class DeckInDB(BaseModel):
