@@ -94,6 +94,9 @@ async def download_audio(video_id: str) -> Path:
 
 async def get_audio_clip(video_id: str, start: float, end: float, filename: str) -> Path:
     """Extract a specific clip from the audio."""
+    if start is None or end is None or start < 0 or end <= start:
+        raise ValueError(f"Invalid audio range for clip {filename}: start={start}, end={end}")
+
     clip_path = AUDIO_CACHE_DIR / filename
 
     if clip_path.exists():

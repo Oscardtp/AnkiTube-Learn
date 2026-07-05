@@ -121,8 +121,17 @@ async def generate_deck(
 
     # Download and slice audio for each card (parallelized)
     async def _generate_clip(idx: int, card):
-        filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start)}_{int(card.timestamp_end)}.mp3"
-        card.audio_filename = filename
+        has_valid_timestamps = (
+            getattr(card, "timestamp_start", None) is not None
+            and getattr(card, "timestamp_end", None) is not None
+            and card.timestamp_end > card.timestamp_start
+        )
+        filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start or 0)}_{int(card.timestamp_end or 0)}.mp3"
+        card.audio_filename = filename if has_valid_timestamps else ""
+        if not has_valid_timestamps:
+            logger.warning(f"Skipping audio clip for card {idx}: invalid timestamps {card.timestamp_start}/{card.timestamp_end}")
+            return
+
         try:
             await get_audio_clip(
                 transcript_data["video_id"],
@@ -130,8 +139,9 @@ async def generate_deck(
                 card.timestamp_end,
                 filename
             )
+            logger.info(f"Generated audio clip for card {idx}: {filename}")
         except Exception as ae:
-            logger.error(f"Failed to generate audio clip for card {idx} in generate_deck: {ae}")
+            logger.error(f"Failed to generate audio clip for card {idx} in generate_deck: {ae}", exc_info=True)
             card.audio_filename = ""
 
     await asyncio.gather(*[_generate_clip(idx, card) for idx, card in enumerate(cards)])
@@ -290,8 +300,17 @@ async def generate_deck_stream(
 
         # Download and slice audio for each card (parallelized)
         async def _generate_clip_stream(idx: int, card):
-            filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start)}_{int(card.timestamp_end)}.mp3"
-            card.audio_filename = filename
+            has_valid_timestamps = (
+                getattr(card, "timestamp_start", None) is not None
+                and getattr(card, "timestamp_end", None) is not None
+                and card.timestamp_end > card.timestamp_start
+            )
+            filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start or 0)}_{int(card.timestamp_end or 0)}.mp3"
+            card.audio_filename = filename if has_valid_timestamps else ""
+            if not has_valid_timestamps:
+                logger.warning(f"Skipping audio clip for card {idx}: invalid timestamps {card.timestamp_start}/{card.timestamp_end}")
+                return
+
             try:
                 await get_audio_clip(
                     transcript_data["video_id"],
@@ -299,8 +318,9 @@ async def generate_deck_stream(
                     card.timestamp_end,
                     filename
                 )
+                logger.info(f"Generated audio clip for card {idx}: {filename}")
             except Exception as ae:
-                logger.error(f"Failed to generate audio clip for card {idx} in generate_deck_stream: {ae}")
+                logger.error(f"Failed to generate audio clip for card {idx} in generate_deck_stream: {ae}", exc_info=True)
                 card.audio_filename = ""
 
         await asyncio.gather(*[_generate_clip_stream(idx, card) for idx, card in enumerate(cards)])

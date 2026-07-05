@@ -346,7 +346,15 @@ Return ONLY valid JSON."""
 
     cards_json = json.dumps(filtered_cards, ensure_ascii=False, indent=2)
 
-    user_prompt = f"""From these {len(filtered_cards)} pre-filtered candidate sentences, select the BEST {max_cards} flashcards.
+    available_count = len(filtered_cards)
+    target_count = min(max_cards, available_count)
+    selection_instruction = (
+        f"Select up to {target_count} highest-quality sentences. "
+        if available_count > target_count
+        else "Select all available sentences because the candidate pool is smaller than the target. "
+    )
+
+    user_prompt = f"""From these {available_count} pre-filtered candidate sentences, {selection_instruction}Choose only the best ones.
 
 CANDIDATE SENTENCES:
 {cards_json}
@@ -354,7 +362,7 @@ CANDIDATE SENTENCES:
 NIVEL DEL USUARIO: {level} — {cefr_desc}
 CONTEXTO: {context_desc}
 
-Select the {max_cards} highest-quality sentences following the pedagogical principles.
+Do not over-select. If the pool is smaller than the target, return all available candidates.
 Each card must include: front, back, keyword, grammar_note, context_note, colombian_note, card_type.
 
 Return ONLY valid JSON with the selected cards."""

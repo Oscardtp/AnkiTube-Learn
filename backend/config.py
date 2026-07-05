@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -13,6 +14,13 @@ class Settings(BaseSettings):
     app_name: str = "AnkiTube Learn API"
     app_debug: bool = False
     frontend_url: str = "http://localhost:3000"
+
+    # OpenRouter free mode (MVP-safe)
+    openrouter_free_model: str = "google/gemini-2.5-flash-lite"
+    openrouter_free_secondary_model: str = "openrouter/auto"
+    openrouter_free_tertiary_model: str = "openrouter/auto"
+    openrouter_free_max_tokens: int = 3000
+    openrouter_free_max_cards: int = 8
 
     # MongoDB
     mongodb_url: str
@@ -33,6 +41,16 @@ class Settings(BaseSettings):
     llm_model_openrouter_free_secondary: str = "openrouter/auto"  # MVP: auto-routing (models change frequently)
     llm_model_openrouter_free_tertiary: str = "openrouter/auto"  # MVP: auto-routing (models change frequently)
 
+    # AI — Nvidia NIM (Primary for dual-role routing)
+    nvidia_api_key: str = ""
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_model_curator_primary: str = "meta/llama-3.3-70b-instruct"
+    nvidia_model_curator_secondary: str = "meta/llama-3.1-70b-instruct"
+    nvidia_model_designer_primary: str = "meta/llama-3.3-70b-instruct"
+    nvidia_model_designer_secondary: str = "nvidia/nemotron-ultra-253b"
+    nvidia_model_designer_tertiary: str = "qwen/qwen3-next-80b-a3b-instruct"
+    nvidia_max_tokens: int = 4000
+
     # AI — Gemini
     google_api_key: str
     llm_model_free: str = "gemini-2.0-flash"
@@ -47,10 +65,15 @@ class Settings(BaseSettings):
     temp_pro: float = 0.4
     temp_claude: float = 0.2
     temp_openrouter: float = 0.3
+    temp_nvidia: float = 0.3
 
     # AI circuit breaker
     circuit_breaker_threshold: int = 3
     circuit_breaker_cooldown_seconds: int = 300  # 5 min
+
+    # Role-based fallback chains (comma-separated for env var compatibility)
+    curator_fallback_chain: str = "nvidia_curator_primary,nvidia_curator_secondary,openrouter,flash"
+    designer_fallback_chain: str = "nvidia_designer_primary,nvidia_designer_secondary,nvidia_designer_tertiary,openrouter,flash"
 
     # Superadmin 2FA (DEPRECATED — use TOTP instead)
     superadmin_2fa_code: str = ""

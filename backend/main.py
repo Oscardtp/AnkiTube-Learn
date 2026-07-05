@@ -45,19 +45,31 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — explicit origins for security
-cors_origins = [
+# CORS — allow local dev + tunnel origins while keeping the API usable in development
+cors_origins = []
+
+for origin in [
     settings.frontend_url,
     "http://localhost:3000",
     "http://localhost:3001",
-]
-# Add production domain if configured
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+]:
+    if origin:
+        cors_origins.append(origin)
+
+# Allow common devtunnel hosts such as https://<id>-3000.use.devtunnels.ms
 if settings.frontend_url and settings.frontend_url not in cors_origins:
     cors_origins.append(settings.frontend_url)
+
+# Allow any origin matching *.use.devtunnels.ms during development
+# This keeps local tunneling working without needing to hardcode every generated hostname.
+allowed_origin_patterns = ["https://*.use.devtunnels.ms", "http://*.use.devtunnels.ms"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=r"https?://.*\.use\.devtunnels\.ms$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-2FA-Code"],
