@@ -6,12 +6,10 @@ import { Loader2, AlertCircle, ChevronLeft, RotateCcw } from "lucide-react"
 import StudyNavbar from "@/components/study/StudyNavbar"
 import StudyCardFlip from "@/components/study/CardFlip"
 import SM2Buttons from "@/components/study/SM2Buttons"
-import FillInTheBlank from "@/components/study/FillInTheBlank"
 import SessionComplete from "@/components/study/SessionComplete"
 import SkillSelector, { type SkillType } from "@/components/study/SkillSelector"
 import WritingExercise from "@/components/study/WritingExercise"
 import ListeningExercise from "@/components/study/ListeningExercise"
-import ReadingExercise from "@/components/study/ReadingExercise"
 import { useSM2, type StudyCard, type StudyResult } from "@/hooks/useSM2"
 import { api } from "@/lib/api"
 
@@ -21,7 +19,6 @@ const SKILL_LABELS: Record<SkillType, string> = {
   srs: "SRS",
   writing: "Writing",
   listening: "Listening",
-  reading: "Reading",
 }
 
 type CardPhase = "srs" | "writing" | "listening"
@@ -42,11 +39,7 @@ function isCardKnown(card: StudyCard): boolean {
 
 function getPhasesForCard(skills: SkillType[], card: StudyCard | null): CardPhase[] {
   if (!card) return getOrderedPhases(skills)
-  const all = getOrderedPhases(skills)
-  if (!isCardKnown(card)) {
-    return all.filter((p) => p !== "writing")
-  }
-  return all
+  return getOrderedPhases(skills)
 }
 
 export default function StudyPage() {
@@ -73,15 +66,12 @@ export default function StudyPage() {
   const errorRef = useRef<HTMLHeadingElement>(null)
   const submittedRef = useRef(false)
 
-  const hasReading = selectedSkills.includes("reading")
-
-  // Total exercises: sum per-card phases + reading
+  // Total exercises: sum per-card phases
   const totalExercises = useMemo(() => {
-    const cardExercises = cards.reduce((sum, card) => {
+    return cards.reduce((sum, card) => {
       return sum + getPhasesForCard(selectedSkills, card).length
     }, 0)
-    return hasReading ? cardExercises + 1 : cardExercises
-  }, [cards, selectedSkills, hasReading])
+  }, [cards, selectedSkills])
 
   // Fetch study status
   useEffect(() => {
@@ -217,12 +207,6 @@ export default function StudyPage() {
     }
   }, [sm2, getNextPhase])
 
-  // Reading handler
-  const handleReadingDone = useCallback(() => {
-    setAllResults((prev) => [...prev, { card_id: "reading-session", quality: 5, skill: "reading" }])
-    setCompletedCount((prev) => prev + 1)
-  }, [])
-
   // Is current skill complete?
   const isAllComplete = completedCount >= totalExercises && totalExercises > 0
 
@@ -342,21 +326,7 @@ export default function StudyPage() {
     )
   }
 
-  // Reading phase (after all cards)
-  if (hasReading && sm2.isComplete) {
-    return (
-      <div className="min-h-screen bg-surface">
-        <StudyNavbar deckTitle={deckTitle} current={completedCount + 1} total={totalExercises} skillLabel="Reading" />
-        <div className="max-w-4xl mx-auto px-4 md:px-8 py-8">
-          <ReadingExercise cards={cards} deckTitle={deckTitle} audioBaseUrl={AUDIO_BASE_URL} videoId={videoId} onDone={handleReadingDone} />
-        </div>
-      </div>
-    )
-  }
-
   // Active study
-  const progressPercent = totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0
-
   return (
     <div className="min-h-screen bg-surface">
       <a href="#study-card" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
@@ -380,10 +350,6 @@ export default function StudyPage() {
                 <StudyCardFlip card={sm2.currentCard} isFlipped={sm2.isFlipped} onFlip={sm2.flip} audioBaseUrl={AUDIO_BASE_URL} />
               )}
             </div>
-
-            {sm2.currentCard?.card_type === "vocabulary" && !sm2.isFlipped && (
-              <FillInTheBlank key={sm2.currentCard.front} answer={sm2.currentCard.back} onReveal={sm2.flip} />
-            )}
 
             {sm2.isFlipped && (
               <div className="space-y-4 animate-fade-in">

@@ -11,6 +11,7 @@ from bson import ObjectId
 from database import get_db
 from models.deck import GenerateRequest, GenerateResponse, DeckPreviewResponse, AddCardRequest, Card
 from services.ai_router import generate_cards
+from services.card_pipeline import CardPipeline
 from services.anki_service import generate_apkg
 from services.audio_service import get_audio_clip
 from utils.auth import get_current_user, require_auth
@@ -20,13 +21,7 @@ from config import get_settings
 
 settings = get_settings()
 
-# Conditional import: mock or real YouTube service based on config
-if settings.use_mock_ai:
-    from services.youtube_mock import get_transcript, transcript_to_text
-    logger_note = "MOCK"
-else:
-    from services.youtube_real import get_transcript, transcript_to_text
-    logger_note = "REAL"
+from services.youtube_real import get_transcript, transcript_to_text, match_cards_to_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +86,13 @@ async def generate_deck(
             detail="Este video no tiene subtítulos disponibles.",
         )
 
-    # Step 2: Generate cards via AI Router
+    # Step 2: Generate cards via CardPipeline
     max_cards = get_max_cards_for_role(user_role)
 
     try:
-        cards, model_used = await generate_cards(
+        pipeline = CardPipeline()
+        cards, model_used = await pipeline.run(
+            transcript=transcript_data["transcript"],
             transcript_text=transcript_text,
             level=payload.level,
             context=payload.context,
@@ -115,8 +112,32 @@ async def generate_deck(
             detail="No se pudieron generar tarjetas para este video. Intenta con otro nivel o video.",
         )
 
-    # Step 3: Save deck to MongoDB
+    # Step 2.5: Assign real timestamps from transcript
+    cards = match_cards_to_transcript(cards, transcript_data["transcript"])
+
+    # Step 3: Save deck to MongoDB with pre-generated ObjectId and audio clips
+    deck_id_obj = ObjectId()
+    deck_id = str(deck_id_obj)
+
+    # Download and slice audio for each card (parallelized)
+    async def _generate_clip(idx: int, card):
+        filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start)}_{int(card.timestamp_end)}.mp3"
+        card.audio_filename = filename
+        try:
+            await get_audio_clip(
+                transcript_data["video_id"],
+                card.timestamp_start,
+                card.timestamp_end,
+                filename
+            )
+        except Exception as ae:
+            logger.error(f"Failed to generate audio clip for card {idx} in generate_deck: {ae}")
+            card.audio_filename = ""
+
+    await asyncio.gather(*[_generate_clip(idx, card) for idx, card in enumerate(cards)])
+
     deck_doc = {
+        "_id": deck_id_obj,
         "user_id": user_id,
         "anonymous_session_id": payload.anonymous_session_id if not user_id else None,
         "video_id": transcript_data["video_id"],
@@ -130,8 +151,7 @@ async def generate_deck(
         "deleted_at": None,
     }
 
-    result = await db.decks.insert_one(deck_doc)
-    deck_id = str(result.inserted_id)
+    await db.decks.insert_one(deck_doc)
 
     # Step 4: Update freemium counters for authenticated free users
     if user_id and user_doc:
@@ -228,7 +248,9 @@ async def generate_deck_stream(
             ai_events.append((event_name, event_data))
 
         try:
-            cards, model_used = await generate_cards(
+            pipeline = CardPipeline()
+            cards, model_used = await pipeline.run(
+                transcript=transcript_data["transcript"],
                 transcript_text=transcript_text,
                 level=payload.level,
                 context=payload.context,
@@ -257,10 +279,34 @@ async def generate_deck_stream(
         for event_name, event_data in ai_events:
             yield sse_event(event_name, event_data)
 
+        # Step 2.5: Assign real timestamps from transcript
+        cards = match_cards_to_transcript(cards, transcript_data["transcript"])
+
         # Step 3: Save deck to MongoDB
         yield sse_event("deck_saving", {"phase": "save", "status": "started"})
 
+        deck_id_obj = ObjectId()
+        deck_id = str(deck_id_obj)
+
+        # Download and slice audio for each card (parallelized)
+        async def _generate_clip_stream(idx: int, card):
+            filename = f"deck_{deck_id}_card_{idx}_{int(card.timestamp_start)}_{int(card.timestamp_end)}.mp3"
+            card.audio_filename = filename
+            try:
+                await get_audio_clip(
+                    transcript_data["video_id"],
+                    card.timestamp_start,
+                    card.timestamp_end,
+                    filename
+                )
+            except Exception as ae:
+                logger.error(f"Failed to generate audio clip for card {idx} in generate_deck_stream: {ae}")
+                card.audio_filename = ""
+
+        await asyncio.gather(*[_generate_clip_stream(idx, card) for idx, card in enumerate(cards)])
+
         deck_doc = {
+            "_id": deck_id_obj,
             "user_id": user_id,
             "anonymous_session_id": payload.anonymous_session_id if not user_id else None,
             "video_id": transcript_data["video_id"],
@@ -274,8 +320,7 @@ async def generate_deck_stream(
             "deleted_at": None,
         }
 
-        result = await db.decks.insert_one(deck_doc)
-        deck_id = str(result.inserted_id)
+        await db.decks.insert_one(deck_doc)
 
         yield sse_event("deck_saved", {"phase": "save", "status": "complete", "deck_id": deck_id})
 
@@ -446,18 +491,21 @@ async def get_card_audio(
         raise HTTPException(status_code=400, detail="Índice de tarjeta inválido")
 
     card = deck["cards"][card_index]
+    filename = card.get("audio_filename")
+    if not filename:
+        filename = f"deck_{deck_id}_card_{card_index}_{int(card['timestamp_start'])}_{int(card['timestamp_end'])}.mp3"
 
     try:
         clip_path = await get_audio_clip(
             deck["video_id"],
             card["timestamp_start"],
             card["timestamp_end"],
-            card_index
+            filename
         )
         return FileResponse(
             path=str(clip_path),
             media_type="audio/mpeg",
-            filename=f"ankitube_clip_{card_index}.mp3"
+            filename=filename
         )
     except Exception as e:
         logger.error(f"Audio extraction failed for deck {deck_id}, card {card_index}: {e}")

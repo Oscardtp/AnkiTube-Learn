@@ -90,6 +90,7 @@ def _record_success(provider: str) -> None:
 def _validate_cards(raw_cards: list[dict]) -> list[Card]:
     """
     Validate and filter AI output. Cards without colombian_note are discarded.
+    Ensures each card has a keyword for fill-in-the-blank exercises.
     Returns list of valid Card objects.
     """
     valid_cards = []
@@ -98,6 +99,24 @@ def _validate_cards(raw_cards: list[dict]) -> list[Card]:
         if not raw.get("colombian_note", "").strip():
             logger.warning(f"Card discarded — missing colombian_note: {raw.get('front', 'unknown')}")
             continue
+
+        # Ensure keyword exists — fallback to first significant word
+        keyword = raw.get("keyword", "").strip()
+        front = raw.get("front", "")
+        if not keyword or keyword.lower() == front.lower():
+            # Use first word that's not a common article/preposition
+            stopwords = {"the", "a", "an", "i", "you", "he", "she", "it", "we", "they", "my", "your", "his", "her", "its", "our", "their"}
+            words = front.split()
+            for word in words:
+                clean = word.lower().strip(".,!?;:")
+                if clean and clean not in stopwords:
+                    keyword = word.strip(".,!?;:")
+                    break
+            if not keyword and words:
+                keyword = words[0].strip(".,!?;:")
+            raw["keyword"] = keyword
+            logger.info(f"Card keyword auto-assigned: '{keyword}' for '{front[:50]}...'")
+
         try:
             card = Card(**raw)
             valid_cards.append(card)
@@ -130,8 +149,6 @@ async def _call_gemini(
                         "grammar_note": {"type": "string"},
                         "context_note": {"type": "string"},
                         "colombian_note": {"type": "string"},
-                        "timestamp_start": {"type": "number"},
-                        "timestamp_end": {"type": "number"},
                         "card_type": {
                             "type": "string",
                             "enum": ["vocabulary", "phrase", "idiom", "grammar_pattern"],
@@ -139,8 +156,7 @@ async def _call_gemini(
                     },
                     "required": [
                         "front", "back", "keyword", "grammar_note",
-                        "context_note", "colombian_note",
-                        "timestamp_start", "timestamp_end", "card_type",
+                        "context_note", "colombian_note", "card_type",
                     ],
                 },
             }
@@ -195,8 +211,6 @@ async def _call_claude(
                                 "grammar_note": {"type": "string"},
                                 "context_note": {"type": "string"},
                                 "colombian_note": {"type": "string"},
-                                "timestamp_start": {"type": "number"},
-                                "timestamp_end": {"type": "number"},
                                 "card_type": {
                                     "type": "string",
                                     "enum": ["vocabulary", "phrase", "idiom", "grammar_pattern"],
@@ -204,8 +218,7 @@ async def _call_claude(
                             },
                             "required": [
                                 "front", "back", "keyword", "grammar_note",
-                                "context_note", "colombian_note",
-                                "timestamp_start", "timestamp_end", "card_type",
+                                "context_note", "colombian_note", "card_type",
                             ],
                         },
                     }
@@ -264,7 +277,9 @@ async def _call_openrouter(
     }
 
     logger.info(f"[OPENROUTER] Request: model={model_name}, temp={temperature}, max_tokens={max_tokens}")
-    logger.debug(f"[OPENROUTER] User prompt length: {len(user_prompt)} chars")
+    logger.info(f"[OPENROUTER] System prompt length: {len(system_prompt)} chars")
+    logger.info(f"[OPENROUTER] User prompt length: {len(user_prompt)} chars")
+    logger.debug(f"[OPENROUTER] User prompt preview: {user_prompt[:500]}...")
 
     # Retry up to 3 times for rate limiting (exponential backoff)
     last_error: Optional[str] = None
@@ -289,82 +304,54 @@ async def _call_openrouter(
 
     data = response.json()
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    
+    logger.info(f"[OPENROUTER] Response status: {response.status_code}")
+    logger.info(f"[OPENROUTER] Response content length: {len(content)} chars")
+    logger.info(f"[OPENROUTER] Response content preview: {content[:800]}...")
 
     # Parse JSON from response (model returns raw text, not wrapped in JSON)
     try:
         parsed = json.loads(content)
-    except json.JSONDecodeError:
+        logger.info(f"[OPENROUTER] JSON parsed OK — keys: {list(parsed.keys())}, cards count: {len(parsed.get('cards', []))}")
+    except json.JSONDecodeError as e:
+        logger.warning(f"[OPENROUTER] JSON decode failed: {e}")
+        
+        # Detect truncation: response cut off mid-JSON
+        content_stripped = content.rstrip()
+        last_char = content_stripped[-1] if content_stripped else ""
+        is_truncated = (
+            "Unterminated string" in str(e) or
+            ("Expecting" in str(e) and last_char not in ('}', ']', '"')) or
+            (len(content) > 100 and last_char not in ('}', ']', '"', ',', ':'))
+        )
+        
+        if is_truncated:
+            logger.error(f"[OPENROUTER] JSON TRUNCATED — max_tokens={max_tokens} too low for {len(content)} chars. "
+                        f"Increase max_tokens or reduce max_cards in prompt.")
+            raise ValueError(
+                f"Response truncated at {len(content)} chars (max_tokens={max_tokens} too low). "
+                f"Increase max_tokens or reduce cards requested."
+            )
+        
         # Try to extract JSON from markdown code block
         match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
         if match:
+            logger.info("[OPENROUTER] Found JSON in markdown code block, extracting...")
             parsed = json.loads(match.group(1))
+            logger.info(f"[OPENROUTER] Extracted from code block — cards count: {len(parsed.get('cards', []))}")
         else:
+            logger.error(f"[OPENROUTER] No JSON found in response. Full content:\n{content[:2000]}")
             raise ValueError(f"OpenRouter returned invalid JSON: {content[:200]}")
 
-    logger.info(f"[OPENROUTER] Response: {len(content)} chars, {len(parsed.get('cards', []))} cards")
+    cards = parsed.get("cards", [])
+    if not cards:
+        logger.warning(f"[OPENROUTER] Response parsed but 'cards' array is empty! Full parsed: {str(parsed)[:500]}")
+    else:
+        logger.info(f"[OPENROUTER] First card keys: {list(cards[0].keys()) if cards else 'N/A'}")
+        logger.info(f"[OPENROUTER] First card preview: {str(cards[0])[:300]}")
 
-    return parsed.get("cards", [])
+    return cards
 
-
-def _get_mock_cards() -> list[Card]:
-    """Mock cards for development — replace with real AI when credits available."""
-    return [
-        Card(
-            front="I've been swamped lately",
-            back="He estado muy ocupado últimamente",
-            keyword="swamped",
-            grammar_note="Present perfect continuo — acción que empezó antes y sigue ahora",
-            context_note="Úsalo cuando estás muy ocupado con trabajo o responsabilidades",
-            colombian_note="Es como decir 'estoy hasta el cuello' o 'no doy abasto' — parce, llevo una semana encartado",
-            timestamp_start=17.5,
-            timestamp_end=21.5,
-            card_type="phrase",
-        ),
-        Card(
-            front="Let's touch base tomorrow",
-            back="Hablemos mañana / Nos coordinamos mañana",
-            keyword="touch base",
-            grammar_note="Imperativo con 'let's' — propuesta informal para hacer algo juntos",
-            context_note="Muy común en ambientes de trabajo para coordinar sin entrar en detalles",
-            colombian_note="Como decir 'cuadramos mañana' o 'nos pegamos mañana' — típico en reuniones de trabajo",
-            timestamp_start=44.2,
-            timestamp_end=48.0,
-            card_type="idiom",
-        ),
-        Card(
-            front="Can you bring me up to speed?",
-            back="¿Me puedes poner al día / actualizar?",
-            keyword="bring up to speed",
-            grammar_note="Modales con 'can' — petición educada. 'Up to speed' = al nivel actual",
-            context_note="Cuando llegas tarde a un proyecto o reunión y necesitas que te expliquen qué pasó",
-            colombian_note="Como decir '¿me cuentas qué ha pasado?' o '¿me pones en contexto?' — muy útil en call centers",
-            timestamp_start=51.5,
-            timestamp_end=55.2,
-            card_type="phrase",
-        ),
-        Card(
-            front="I've got it covered",
-            back="Yo me encargo / Lo tengo bajo control",
-            keyword="got it covered",
-            grammar_note="Present perfect informal — 'got' reemplaza 'have' en inglés coloquial",
-            context_note="Para decir que ya te responsabilizaste de algo sin que nadie más tenga que preocuparse",
-            colombian_note="Como decir 'yo me encargo de eso' o 'tranquilo que yo lo manejo' — muy usado en trabajo",
-            timestamp_start=62.5,
-            timestamp_end=65.8,
-            card_type="phrase",
-        ),
-        Card(
-            front="My bad",
-            back="Fue mi culpa / Me equivoqué",
-            keyword="my bad",
-            grammar_note="Expresión coloquial — equivalente informal de 'I'm sorry, it was my fault'",
-            context_note="Para disculparse de forma casual por un error pequeño entre conocidos o compañeros",
-            colombian_note="Como decir 'uy, fue mi culpa' o 'perdon, la embarré' — muy natural entre parceros",
-            timestamp_start=65.8,
-            timestamp_end=69.5,
-            card_type="vocabulary",
-        ),
-    ]
 
 async def generate_cards(
     transcript_text: str,
@@ -512,3 +499,184 @@ def _get_fallback_order(primary: str) -> list[str]:
         # Primary could still be pro/claude (future), fall back to free only
         logger.warning(f"Unknown provider '{primary}', using free providers only for MVP")
         return free_providers
+
+
+async def extract_candidates(
+    transcript_text: str,
+    level: str,
+    max_cards: int,
+    user_role: str = "user",
+    on_event=None,
+) -> tuple[list[dict], str]:
+    """
+    Step 1: Extract candidate phrases from transcript.
+    Returns (list of raw card dicts, model_used_name).
+    Phrases MUST exist in the transcript — no rewriting.
+    """
+    from utils.prompts import build_extraction_prompt
+
+    system_prompt, user_prompt = build_extraction_prompt(
+        transcript_text=transcript_text,
+        level=level,
+        max_cards=max_cards,
+    )
+
+    if on_event:
+        await on_event("pipeline_step1_started", {"phase": "pipeline_step1", "status": "started"})
+
+    # Use the user's tier to select provider
+    primary_provider = TIER_TO_PROVIDER.get(user_role, "openrouter")
+    fallback_order = _get_fallback_order(primary_provider)
+
+    last_error = None
+    for provider in fallback_order:
+        if _is_circuit_open(provider):
+            logger.info(f"[PIPELINE-STEP1] Skipping {provider} — circuit breaker open")
+            continue
+
+        try:
+            logger.info(f"[PIPELINE-STEP1] Trying provider: {provider} (model: {PROVIDER_TO_MODEL[provider]})")
+            
+            if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                raw_cards = await _call_openrouter(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.3,  # Low for consistency
+                    max_tokens=4000,  # ~30 cards need ~6400 chars of JSON
+                )
+            elif provider in ("flash", "pro"):
+                raw_cards = await _call_gemini(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.3,
+                    max_output_tokens=4000,  # Match openrouter
+                )
+            else:
+                raw_cards = await _call_claude(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.2,
+                    max_tokens=4000,
+                )
+
+            logger.info(f"[PIPELINE-STEP1] Provider {provider} returned {len(raw_cards)} raw cards")
+            
+            _record_success(provider)
+            
+            if on_event:
+                await on_event("pipeline_step1_complete", {
+                    "phase": "pipeline_step1",
+                    "status": "complete",
+                    "candidates_found": len(raw_cards),
+                    "provider": provider,
+                })
+
+            return raw_cards, PROVIDER_TO_MODEL[provider]
+
+        except Exception as e:
+            logger.error(f"[PIPELINE-STEP1] Provider {provider} FAILED: {type(e).__name__}: {e}")
+            _record_failure(provider)
+            last_error = e
+            if on_event:
+                await on_event("pipeline_step1_error", {
+                    "phase": "pipeline_step1",
+                    "status": "failed",
+                    "provider": provider,
+                    "error": str(e),
+                })
+            continue
+
+    raise RuntimeError(f"All AI providers failed for Step 1. Last error: {last_error}")
+
+
+async def select_best_cards(
+    filtered_cards: list[dict],
+    level: str,
+    context: str,
+    max_cards: int,
+    user_role: str = "user",
+    on_event=None,
+) -> tuple[list[Card], str]:
+    """
+    Step 3: Select the best cards from filtered candidates.
+    Uses the Senior English Learning Expert prompt.
+    Returns (list of Card objects, model_used_name).
+    """
+    from utils.prompts import build_selection_prompt
+
+    system_prompt, user_prompt = build_selection_prompt(
+        filtered_cards=filtered_cards,
+        level=level,
+        context=context,
+        max_cards=max_cards,
+    )
+
+    if on_event:
+        await on_event("pipeline_step3_started", {"phase": "pipeline_step3", "status": "started"})
+
+    # Use the user's tier to select provider
+    primary_provider = TIER_TO_PROVIDER.get(user_role, "openrouter")
+    fallback_order = _get_fallback_order(primary_provider)
+
+    last_error = None
+    for provider in fallback_order:
+        if _is_circuit_open(provider):
+            continue
+
+        try:
+            if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                raw_cards = await _call_openrouter(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.2,  # Very low for pedagogical decisions
+                    max_tokens=4000,
+                )
+            elif provider in ("flash", "pro"):
+                raw_cards = await _call_gemini(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.2,
+                    max_output_tokens=4000,
+                )
+            else:
+                raw_cards = await _call_claude(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.2,
+                    max_tokens=4000,
+                )
+
+            valid_cards = _validate_cards(raw_cards)
+
+            if not valid_cards:
+                raise ValueError("All selected cards failed validation")
+
+            _record_success(provider)
+
+            if on_event:
+                await on_event("pipeline_step3_complete", {
+                    "phase": "pipeline_step3",
+                    "status": "complete",
+                    "cards_selected": len(valid_cards),
+                    "provider": provider,
+                })
+
+            return valid_cards, PROVIDER_TO_MODEL[provider]
+
+        except Exception as e:
+            _record_failure(provider)
+            last_error = e
+            if on_event:
+                await on_event("pipeline_step3_error", {
+                    "phase": "pipeline_step3",
+                    "status": "failed",
+                    "provider": provider,
+                    "error": str(e),
+                })
+            continue
+
+    raise RuntimeError(f"All AI providers failed for Step 3. Last error: {last_error}")

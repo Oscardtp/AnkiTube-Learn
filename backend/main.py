@@ -89,6 +89,12 @@ app.include_router(admin.router)
 app.include_router(study.router)
 app.include_router(recommender.router)
 
+# Mount static files for audio
+from fastapi.staticfiles import StaticFiles
+from services.audio_service import AUDIO_CACHE_DIR
+AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/audio", StaticFiles(directory=str(AUDIO_CACHE_DIR)), name="audio")
+
 
 @app.get("/health")
 async def health():

@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = "dummy-for-local-dev"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model_openrouter: str = "meta-llama/llama-3.2-3b-instruct:free"  # Primary free
-    llm_model_openrouter_free_secondary: str = "deepseek/deepseek-chat-v3-0324:free"  # Better quality fallback
-    llm_model_openrouter_free_tertiary: str = "google/gemini-3-flash-preview:free"  # Google latest free
+    llm_model_openrouter_free_secondary: str = "openrouter/auto"  # MVP: auto-routing (models change frequently)
+    llm_model_openrouter_free_tertiary: str = "openrouter/auto"  # MVP: auto-routing (models change frequently)
 
     # AI — Gemini
     google_api_key: str

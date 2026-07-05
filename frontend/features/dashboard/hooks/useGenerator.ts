@@ -17,9 +17,9 @@ export type GenerationStatus =
 
 export const GENERATION_MESSAGES: Record<GenerationStatus, string> = {
   idle: "",
-  extracting: "Buscando el video...",
-  analyzing: "Video encontrado, analizando...",
-  generating: "Generando tus tarjetas...",
+  extracting: "Buscando frases en el video...",
+  analyzing: "Filtrando frases de calidad...",
+  generating: "Seleccionando las mejores...",
   completed: "Listo parce, quedó brutal",
   error: "Uy, algo falló",
 }
@@ -126,19 +126,24 @@ export function useGenerator(decks: Deck[], onDuplicateDetected?: (deck: Deck) =
           if (event === "transcript_started") {
             setGenerationStatus("extracting")
           } else if (event === "transcript_complete") {
+            // Transcript ready, pipeline will start
+          } else if (event === "pipeline_step1_started") {
+            setGenerationStatus("extracting")
+          } else if (event === "pipeline_step1_complete") {
             setGenerationStatus("analyzing")
-          } else if (event === "ai_started") {
+          } else if (event === "pipeline_step2_started") {
+            setGenerationStatus("analyzing")
+          } else if (event === "pipeline_step2_complete") {
             setGenerationStatus("generating")
-          } else if (event === "ai_provider_result") {
-            if (data.status === "failed") {
-              // Show retry message briefly
-              setGenerationError("Probando con otra fuente...")
-              setTimeout(() => setGenerationError(""), 2000)
-            }
+          } else if (event === "pipeline_step3_started") {
+            setGenerationStatus("generating")
+          } else if (event === "pipeline_step3_complete") {
+            // Step 3 complete - wait for deck_saved
           } else if (event === "deck_saved") {
             // Deck is saved, wait for complete
           } else if (event === "generation_complete") {
             setGenerationStatus("completed")
+            setGenerating(false)
             setGeneratedDeckId(data.deck_id as string)
             success("Qué nota, ya está listo tu mazo")
             // Invalidate queries so dashboard shows new deck

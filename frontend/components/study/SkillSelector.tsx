@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { BookOpen, PenLine, Headphones, ScrollText, Check, Loader2 } from "lucide-react"
+import { BookOpen, PenLine, Headphones, Check, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 
-export type SkillType = "srs" | "writing" | "listening" | "reading"
+export type SkillType = "srs" | "writing" | "listening"
 
 export interface SkillOption {
   id: SkillType
@@ -35,18 +35,10 @@ const SKILLS: SkillOption[] = [
   {
     id: "listening",
     label: "Listening",
-    description: "Dictado de audio",
+    description: "Completar palabras del audio",
     icon: Headphones,
     color: "text-[#EA580C]",
     bg: "bg-[#EA580C]/10",
-  },
-  {
-    id: "reading",
-    label: "Reading",
-    description: "Transcripción con vocabulario",
-    icon: ScrollText,
-    color: "text-[#16A34A]",
-    bg: "bg-[#16A34A]/10",
   },
 ]
 
