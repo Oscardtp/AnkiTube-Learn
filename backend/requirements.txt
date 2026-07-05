@@ -20,3 +20,5 @@ email-validator==2.1.1
 youtube-transcript-api
 requests
 pyotp>=2.9.0
+yt-dlp>=2024.1.0
+imageio-ffmpeg>=0.4.9

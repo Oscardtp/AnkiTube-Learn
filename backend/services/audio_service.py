@@ -1,16 +1,27 @@
 import os
 import subprocess
-import tempfile
-import hashlib
 import logging
 import time
+import sys
+import asyncio
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Temporary audio storage (Railway volume or /tmp)
-AUDIO_CACHE_DIR = Path("/tmp/ankitube_audio")
-AUDIO_CACHE_DIR.mkdir(exist_ok=True)
+# Store audio clips in backend/assets/audio
+AUDIO_CACHE_DIR = Path(os.path.join(os.path.dirname(__file__), "..", "assets", "audio"))
+AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Resolve ffmpeg path - prefer imageio-ffmpeg bundled binary, fallback to system ffmpeg
+def _get_ffmpeg_path() -> str:
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        return "ffmpeg"
+
+FFMPEG_PATH = _get_ffmpeg_path()
 
 
 async def download_audio(video_id: str) -> Path:
@@ -20,27 +31,70 @@ async def download_audio(video_id: str) -> Path:
     if output_path.exists():
         return output_path
 
+    # Use atomic lock file to prevent concurrent downloads for same video_id
+    lock_path = AUDIO_CACHE_DIR / f"{video_id}_download.lock"
+    
+    # Check again after acquiring lock pattern (double-checked locking)
+    if output_path.exists():
+        return output_path
+
+    # First download as webm, then convert to mp3 with ffmpeg
+    temp_path = AUDIO_CACHE_DIR / f"{video_id}_temp.webm"
     url = f"https://www.youtube.com/watch?v={video_id}"
-    cmd = [
-        "yt-dlp",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "5",  # Lower quality = smaller file
-        "-o", str(output_path),
+
+    # Step 1: Download audio with yt-dlp (no postprocessing) — run in thread to avoid blocking
+    cmd_download = [
+        sys.executable, "-m", "yt_dlp",
+        "-f", "bestaudio",
+        "--remote-components", "ejs:github",
+        "--js-runtimes", "node",
+        "-o", str(temp_path),
         url
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    def _run_download():
+        return subprocess.run(cmd_download, capture_output=True, text=True, timeout=180)
+
+    result = await asyncio.to_thread(_run_download)
     if result.returncode != 0:
         raise Exception(f"yt-dlp failed: {result.stderr}")
+
+    # Find the downloaded file (yt-dlp may add extension)
+    downloaded_file = None
+    for f in AUDIO_CACHE_DIR.glob(f"{video_id}_temp.*"):
+        if not f.name.endswith(".lock"):
+            downloaded_file = f
+            break
+
+    if not downloaded_file:
+        raise Exception("Downloaded file not found")
+
+    # Step 2: Convert to mp3 with ffmpeg — run in thread to avoid blocking
+    cmd_convert = [
+        FFMPEG_PATH,
+        "-i", str(downloaded_file),
+        "-acodec", "libmp3lame",
+        "-ab", "128k",
+        "-y",
+        str(output_path)
+    ]
+
+    def _run_convert():
+        return subprocess.run(cmd_convert, capture_output=True, text=True, timeout=120)
+
+    result = await asyncio.to_thread(_run_convert)
+    if result.returncode != 0:
+        raise Exception(f"FFmpeg conversion failed: {result.stderr}")
+
+    # Clean up temp file
+    downloaded_file.unlink(missing_ok=True)
 
     return output_path
 
 
-async def get_audio_clip(video_id: str, start: float, end: float, card_index: int) -> Path:
+async def get_audio_clip(video_id: str, start: float, end: float, filename: str) -> Path:
     """Extract a specific clip from the audio."""
-    clip_key = f"{video_id}_{card_index}"
-    clip_path = AUDIO_CACHE_DIR / f"{clip_key}.mp3"
+    clip_path = AUDIO_CACHE_DIR / filename
 
     if clip_path.exists():
         return clip_path
@@ -48,10 +102,10 @@ async def get_audio_clip(video_id: str, start: float, end: float, card_index: in
     # Download full audio first
     full_audio = await download_audio(video_id)
 
-    # Cut with FFmpeg
+    # Cut with FFmpeg — run in thread to avoid blocking
     duration = end - start
     cmd = [
-        "ffmpeg",
+        FFMPEG_PATH,
         "-i", str(full_audio),
         "-ss", str(start),
         "-t", str(duration),
@@ -60,25 +114,14 @@ async def get_audio_clip(video_id: str, start: float, end: float, card_index: in
         str(clip_path)
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    def _run_ffmpeg():
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+    result = await asyncio.to_thread(_run_ffmpeg)
     if result.returncode != 0:
         raise Exception(f"FFmpeg failed: {result.stderr}")
 
     return clip_path
-
-
-async def get_all_deck_clips(video_id: str, cards: list) -> list[Path]:
-    """Pre-download all clips for a deck."""
-    clips = []
-    for i, card in enumerate(cards):
-        clip = await get_audio_clip(
-            video_id,
-            card["timestamp_start"],
-            card["timestamp_end"],
-            i
-        )
-        clips.append(clip)
-    return clips
 
 
 def cleanup_old_files(max_age_hours: int = 24):

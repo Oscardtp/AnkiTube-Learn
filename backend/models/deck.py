@@ -8,13 +8,13 @@ class Card(BaseModel):
     front: str
     back: str
     keyword: str
-    grammar_note: str
-    context_note: str
+    grammar_note: str = ""
+    context_note: str = ""
     colombian_note: str  # REQUIRED — real Colombian equivalent
-    timestamp_start: float
-    timestamp_end: float
+    timestamp_start: float = 0.0  # Assigned by match_cards_to_transcript()
+    timestamp_end: float = 0.0  # Assigned by match_cards_to_transcript()
     audio_filename: str = ""
-    card_type: Literal["vocabulary", "phrase", "idiom", "grammar_pattern"]
+    card_type: str = "phrase"  # vocabulary, phrase, idiom, grammar_pattern
     sm2_data: Optional[dict] = None  # {interval, easiness, reps, due_date, last_reviewed}
 
 

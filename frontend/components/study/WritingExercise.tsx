@@ -11,37 +11,33 @@ interface WritingExerciseProps {
   onNext: () => void
 }
 
-function buildSentenceWithBlank(front: string, keyword: string): { parts: string[]; blankIndex: number } {
-  if (!keyword || !front) return { parts: [front], blankIndex: -1 }
+function buildSentenceWithBlank(front: string, keyword: string): { parts: string[]; blankWord: string } {
+  if (!front) return { parts: [front], blankWord: "" }
+
+  // Use keyword if provided, otherwise use last word
+  const blankWord = keyword || front.split(" ").pop() || ""
+
+  if (!blankWord) return { parts: [front], blankWord: "" }
 
   const lowerFront = front.toLowerCase()
-  const lowerKeyword = keyword.toLowerCase()
-  const idx = lowerFront.indexOf(lowerKeyword)
+  const lowerBlank = blankWord.toLowerCase()
+  const idx = lowerFront.indexOf(lowerBlank)
 
   if (idx === -1) {
+    // Keyword not found — put blank at the end
     const words = front.split(" ")
-    const blankIdx = Math.max(0, words.length - 1)
-    return { parts: words, blankIndex: blankIdx }
+    words.pop()
+    return { parts: [...words, "__BLANK__"], blankWord }
   }
 
   const before = front.slice(0, idx)
-  const after = front.slice(idx + keyword.length)
+  const after = front.slice(idx + blankWord.length)
   const parts: string[] = []
   if (before.trim()) parts.push(before.trim())
   parts.push("__BLANK__")
   if (after.trim()) parts.push(after.trim())
 
-  return { parts, blankIndex: 1 }
-}
-
-function getCardTypeLabel(type: string): string {
-  switch (type) {
-    case "vocabulary": return "Vocabulario"
-    case "phrase": return "Frase"
-    case "idiom": return "Modismo"
-    case "grammar_pattern": return "Gramática"
-    default: return type
-  }
+  return { parts, blankWord }
 }
 
 export default function WritingExercise({
@@ -65,10 +61,20 @@ export default function WritingExercise({
     [audioBaseUrl, card.audio_filename]
   )
 
-  const { parts, blankIndex } = useMemo(
+  const { parts, blankWord } = useMemo(
     () => buildSentenceWithBlank(card.front, card.keyword),
     [card.front, card.keyword]
   )
+
+  // Dynamic input width based on keyword length
+  const inputWidth = useMemo(() => {
+    const len = blankWord.length
+    if (len <= 5) return "w-28"
+    if (len <= 10) return "w-40"
+    if (len <= 15) return "w-52"
+    if (len <= 20) return "w-64"
+    return "w-72"
+  }, [blankWord])
 
   // Reset state when card changes
   useEffect(() => {
@@ -157,10 +163,10 @@ export default function WritingExercise({
                           handleVerify()
                         }
                       }}
-                      placeholder="type here"
+                      placeholder="____"
                       disabled={verified}
                       aria-describedby="writing-hint"
-                      className={`bg-gray-50 border-b-4 hover:border-primary/40 focus:border-primary focus:ring-0 rounded-xl px-6 py-3 text-primary font-bold w-48 text-center transition-all placeholder:text-gray-300 placeholder:text-xl placeholder:font-medium ${
+                      className={`bg-gray-50 border-b-4 hover:border-primary/40 focus:border-primary focus:ring-0 rounded-xl px-6 py-3 text-primary font-bold ${inputWidth} text-center transition-all placeholder:text-gray-300 placeholder:text-xl placeholder:font-medium ${
                         verified
                           ? isCorrect
                             ? "border-[#10B981] bg-[#10B981]/10"
@@ -210,7 +216,7 @@ export default function WritingExercise({
           )}
 
           {/* Audio hint (if user requested) */}
-          {showAudioHint && audioSrc && (
+          {showAudioHint && (
             <div className="bg-[#EBF2FF] border border-[#BFDBFE] rounded-2xl p-4 text-center">
               <p className="text-[11px] font-bold text-[#1e40af] uppercase tracking-[0.12em] mb-2">
                 Escucha la pronunciación
@@ -232,7 +238,14 @@ export default function WritingExercise({
           {/* Focused Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6">
             <button
-              onClick={() => setShowAudioHint(true)}
+              onClick={() => {
+                setShowAudioHint(true)
+                // Auto-play audio when hint is shown
+                if (audioRef.current && audioSrc) {
+                  audioRef.current.play().catch(() => setIsPlaying(false))
+                  setIsPlaying(true)
+                }
+              }}
               disabled={showAudioHint || verified}
               className="flex items-center gap-2 text-gray-400 hover:text-primary font-bold text-sm transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
             >
