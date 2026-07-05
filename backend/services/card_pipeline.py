@@ -103,13 +103,23 @@ class CardPipeline:
                 "Intenta con otro video o nivel."
             )
 
-        # Step 3: LLM selects the best cards
-        logger.info(f"[PIPELINE] Step 3: Selecting best {max_cards} from {len(filtered)} candidates")
+        # Step 3: LLM selects the best cards, but keep the target bounded by the filtered pool.
+        target_cards = min(max_cards, len(filtered))
+        min_target_cards = 8
+        if len(filtered) < min_target_cards:
+            logger.info(
+                f"[PIPELINE] Step 3 skipped: only {len(filtered)} candidates remain after filtering, using them directly"
+            )
+            cards = [Card(**candidate) for candidate in filtered]
+            return cards, model_used
+
+        selected_count = max(min_target_cards, min(target_cards, 16))
+        logger.info(f"[PIPELINE] Step 3: Selecting best {selected_count} from {len(filtered)} candidates")
         cards, _ = await select_best_cards(
             filtered_cards=filtered,
             level=level,
             context=context,
-            max_cards=min(max_cards, len(filtered)),
+            max_cards=selected_count,
             user_role=user_role,
             on_event=on_event,
         )

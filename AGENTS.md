@@ -39,12 +39,14 @@ npm run dev
 | Frontend build | `npm run build` |
 | Frontend typecheck | `npx tsc --noEmit` |
 | Lint | `npm run lint` |
+| Benchmark | `cd backend && python -m tests.benchmark_pedagogical` |
 
 ## AI Router (Critical)
 
 **Provider fallback chain:**
 ```
-openrouter/auto → gemini-2.0-flash → gemini-1.5-pro-002 → claude-sonnet-4-20250514
+Curator: nvidia_llama_3.3 → nvidia_llama_3.1 → openrouter/auto → gemini-flash
+Designer: nvidia_llama_3.3 → nemotron-ultra → qwen3-next → openrouter/auto → gemini-flash
 ```
 
 **Environment variables required in Railway:**
@@ -58,6 +60,49 @@ openrouter/auto → gemini-2.0-flash → gemini-1.5-pro-002 → claude-sonnet-4-
 **⚠️ OpenRouter credits:** Account has limited credits. Keep `max_tokens` ≤ 4000 for Step 1 (card extraction). Reduce `multiplier` in `card_pipeline.py` if credits are low.
 
 **⚠️ google.generativeai deprecated:** Emits FutureWarning on import. Migrate to `google.genai` package when possible.
+
+## AI Router — Dual-Role Architecture (v2)
+
+The AI Router uses two specialized roles with independent fallback chains:
+
+### 🟢 LLM #1 — Pedagogical Curator (Step 1: Extraction)
+**Role:** Extract candidate phrases from transcripts with high precision.
+**Priority:** Nvidia Llama 3.3 70B → Llama 3.1 70B → OpenRouter auto (free) → Gemini Flash
+
+| Provider Key | Model | Purpose |
+|--------------|-------|---------|
+| `nvidia_curator_primary` | meta/llama-3.3-70b-instruct | Primary |
+| `nvidia_curator_secondary` | meta/llama-3.1-70b-instruct | Fallback |
+| `openrouter` | openrouter/auto | Free fallback |
+| `flash` | gemini-2.0-flash | Last resort |
+
+**Config:** `temperature=0.3`, `max_tokens=4096`
+
+### 🟢 LLM #2 — Learning Designer (Step 3: Selection/Design)
+**Role:** Select and design pedagogically excellent flashcards.
+**Priority:** Nvidia Llama 3.3 70B → Nemotron Ultra → Qwen3-next → OpenRouter auto (free) → Gemini Flash
+
+| Provider Key | Model | Purpose |
+|--------------|-------|---------|
+| `nvidia_designer_primary` | meta/llama-3.3-70b-instruct | Primary |
+| `nvidia_designer_secondary` | nvidia/nemotron-ultra-253b | Fallback |
+| `nvidia_designer_tertiary` | qwen/qwen3-next-80b-a3b-instruct | Fallback |
+| `openrouter` | openrouter/auto | Free fallback |
+| `flash` | gemini-2.0-flash | Last resort |
+
+**Config:** `temperature=0.2`, `max_tokens=4096`
+
+### Circuit Breaker
+Each provider has independent circuit breaker state per role.
+After 3 consecutive failures → 5 min cooldown.
+
+### Running Benchmarks
+```bash
+cd backend
+python -m tests.benchmark_pedagogical --role curator
+python -m tests.benchmark_pedagogical --role designer
+python -m tests.benchmark_pedagogical --role both
+```
 
 ## Secrets
 

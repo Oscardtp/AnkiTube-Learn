@@ -1,8 +1,10 @@
 """
 Central AI Router — the brain of AnkiTube Learn.
-All AI calls go through here. Never call Gemini or Anthropic directly from routes.
+All AI calls go through here. Never call Gemini, Anthropic, or Nvidia directly from routes.
 
-Fallback order: OpenRouter → OpenRouter Secondary → OpenRouter Tertiary → Gemini Flash → Claude → error
+Dual-role routing:
+- CURATOR (Step 1 - extraction): Nvidia Llama 3.3/3.1 → OpenRouter → Gemini Flash
+- DESIGNER (Step 3 - selection): Nvidia Llama 3.3 → Nemotron → Qwen3 → OpenRouter → Gemini Flash
 Circuit breaker: skip provider for 5 min after 3 consecutive failures.
 """
 
@@ -28,6 +30,10 @@ settings = get_settings()
 genai.configure(api_key=settings.google_api_key)
 anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
+FREE_OPENROUTER_MODEL = settings.openrouter_free_model
+FREE_OPENROUTER_SECONDARY_MODEL = settings.openrouter_free_secondary_model
+FREE_OPENROUTER_TERTIARY_MODEL = settings.openrouter_free_tertiary_model
+
 # Circuit breaker state — in-memory for MVP (Redis in Phase 2)
 _circuit_breaker: dict[str, dict] = {
     "openrouter": {"failures": 0, "open_until": None},
@@ -36,6 +42,11 @@ _circuit_breaker: dict[str, dict] = {
     "flash": {"failures": 0, "open_until": None},
     "pro": {"failures": 0, "open_until": None},
     "claude": {"failures": 0, "open_until": None},
+    "nvidia_curator_primary": {"failures": 0, "open_until": None},
+    "nvidia_curator_secondary": {"failures": 0, "open_until": None},
+    "nvidia_designer_primary": {"failures": 0, "open_until": None},
+    "nvidia_designer_secondary": {"failures": 0, "open_until": None},
+    "nvidia_designer_tertiary": {"failures": 0, "open_until": None},
 }
 
 # Map user tier to provider key
@@ -50,12 +61,17 @@ TIER_TO_PROVIDER = {
 }
 
 PROVIDER_TO_MODEL = {
-    "openrouter": settings.llm_model_openrouter,
-    "openrouter_secondary": settings.llm_model_openrouter_free_secondary,
-    "openrouter_tertiary": settings.llm_model_openrouter_free_tertiary,
+    "openrouter": FREE_OPENROUTER_MODEL,
+    "openrouter_secondary": FREE_OPENROUTER_SECONDARY_MODEL,
+    "openrouter_tertiary": FREE_OPENROUTER_TERTIARY_MODEL,
     "flash": settings.llm_model_free,
     "pro": settings.llm_model_fluente,
     "claude": settings.llm_model_nativo,
+    "nvidia_curator_primary": settings.nvidia_model_curator_primary,
+    "nvidia_curator_secondary": settings.nvidia_model_curator_secondary,
+    "nvidia_designer_primary": settings.nvidia_model_designer_primary,
+    "nvidia_designer_secondary": settings.nvidia_model_designer_secondary,
+    "nvidia_designer_tertiary": settings.nvidia_model_designer_tertiary,
 }
 
 
@@ -85,6 +101,27 @@ def _record_failure(provider: str) -> None:
 def _record_success(provider: str) -> None:
     _circuit_breaker[provider]["failures"] = 0
     _circuit_breaker[provider]["open_until"] = None
+
+
+def _is_openrouter_free_mode(user_role: str) -> bool:
+    return user_role in {"user", "tester", "premium", "nativo"}
+
+
+def _get_safe_openrouter_request_settings(
+    max_tokens: int,
+    max_cards: int,
+    user_role: str,
+    provider: str,
+) -> tuple[int, int]:
+    if _is_openrouter_free_mode(user_role) and provider in {
+        "openrouter",
+        "openrouter_secondary",
+        "openrouter_tertiary",
+    }:
+        capped_tokens = min(max_tokens, settings.openrouter_free_max_tokens)
+        capped_cards = min(max_cards, settings.openrouter_free_max_cards)
+        return capped_tokens, capped_cards
+    return max_tokens, max_cards
 
 
 def _validate_cards(raw_cards: list[dict]) -> list[Card]:
@@ -134,6 +171,8 @@ async def _call_gemini(
     max_output_tokens: int,
 ) -> list[dict]:
     """Call Gemini with response_schema for structured JSON output."""
+
+    max_output_tokens = min(max_output_tokens, 3000)
 
     response_schema = {
         "type": "object",
@@ -192,6 +231,8 @@ async def _call_claude(
     max_tokens: int,
 ) -> list[dict]:
     """Call Claude with tool_use + tool_choice forced for structured output."""
+
+    max_tokens = min(max_tokens, 3000)
 
     tools = [
         {
@@ -258,6 +299,7 @@ async def _call_openrouter(
     max_tokens: int,
 ) -> list[dict]:
     """Call OpenRouter with specified model for structured JSON output."""
+    max_tokens = min(max_tokens, 3000)
     url = f"{settings.openrouter_base_url}/chat/completions"
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
@@ -281,7 +323,7 @@ async def _call_openrouter(
     logger.info(f"[OPENROUTER] User prompt length: {len(user_prompt)} chars")
     logger.debug(f"[OPENROUTER] User prompt preview: {user_prompt[:500]}...")
 
-    # Retry up to 3 times for rate limiting (exponential backoff)
+    # Retry up to 3 times for rate limiting / credit limits with smaller payloads
     last_error: Optional[str] = None
     for attempt in range(3):
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -290,11 +332,18 @@ async def _call_openrouter(
         if response.status_code == 200:
             break
         elif response.status_code == 429:
-            # Rate limited — wait and retry with backoff
             last_error = "rate-limited"
             wait_time = 2 ** attempt * 2  # 2s, 4s, 8s
             logger.info(f"OpenRouter rate-limited, retrying in {wait_time}s (attempt {attempt + 1}/3)")
             await asyncio.sleep(wait_time)
+            continue
+        elif response.status_code == 402 and payload.get("max_tokens", 0) > 800:
+            last_error = "credit-limit"
+            payload["max_tokens"] = max(800, int(payload["max_tokens"] * 0.7))
+            logger.warning(
+                f"OpenRouter credits exhausted, retrying with smaller budget: {payload['max_tokens']} tokens"
+            )
+            await asyncio.sleep(2)
             continue
         else:
             raise ValueError(f"OpenRouter error {response.status_code}: {response.text}")
@@ -353,6 +402,103 @@ async def _call_openrouter(
     return cards
 
 
+async def _call_nvidia(
+    model_name: str,
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float,
+    max_tokens: int,
+) -> list[dict]:
+    """Call Nvidia NIM API with specified model for structured JSON output."""
+    from openai import OpenAI
+
+    max_tokens = min(max_tokens, 3000)
+
+    client = OpenAI(
+        base_url=settings.nvidia_base_url,
+        api_key=settings.nvidia_api_key,
+    )
+
+    logger.info(f"[NVIDIA] Request: model={model_name}, temp={temperature}, max_tokens={max_tokens}")
+    logger.info(f"[NVIDIA] System prompt length: {len(system_prompt)} chars")
+    logger.info(f"[NVIDIA] User prompt length: {len(user_prompt)} chars")
+    logger.debug(f"[NVIDIA] User prompt preview: {user_prompt[:500]}...")
+
+    last_error: Optional[str] = None
+    for attempt in range(3):
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            ),
+        )
+
+        content = response.choices[0].message.content or ""
+
+        if response.choices[0].finish_reason == "stop":
+            break
+        elif response.choices[0].finish_reason == "length":
+            last_error = "truncated"
+            logger.warning(f"[NVIDIA] Response truncated (finish_reason=length), retrying...")
+            await asyncio.sleep(1)
+            continue
+        else:
+            last_error = f"finish_reason={response.choices[0].finish_reason}"
+            logger.warning(f"[NVIDIA] Unexpected finish_reason: {last_error}")
+            await asyncio.sleep(1)
+            continue
+
+    logger.info(f"[NVIDIA] Response content length: {len(content)} chars")
+    logger.info(f"[NVIDIA] Response content preview: {content[:800]}...")
+
+    try:
+        parsed = json.loads(content)
+        logger.info(f"[NVIDIA] JSON parsed OK — keys: {list(parsed.keys())}, cards count: {len(parsed.get('cards', []))}")
+    except json.JSONDecodeError as e:
+        logger.warning(f"[NVIDIA] JSON decode failed: {e}")
+
+        content_stripped = content.rstrip()
+        last_char = content_stripped[-1] if content_stripped else ""
+        is_truncated = (
+            "Unterminated string" in str(e) or
+            ("Expecting" in str(e) and last_char not in ('}', ']', '"')) or
+            (len(content) > 100 and last_char not in ('}', ']', '"', ',', ':'))
+        )
+
+        if is_truncated:
+            logger.error(f"[NVIDIA] JSON TRUNCATED — max_tokens={max_tokens} too low for {len(content)} chars.")
+            raise ValueError(
+                f"Response truncated at {len(content)} chars (max_tokens={max_tokens} too low). "
+                f"Increase max_tokens or reduce cards requested."
+            )
+
+        match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
+        if match:
+            logger.info("[NVIDIA] Found JSON in markdown code block, extracting...")
+            parsed = json.loads(match.group(1))
+            logger.info(f"[NVIDIA] Extracted from code block — cards count: {len(parsed.get('cards', []))}")
+        else:
+            logger.error(f"[NVIDIA] No JSON found in response. Full content:\n{content[:2000]}")
+            raise ValueError(f"Nvidia returned invalid JSON: {content[:200]}")
+
+    cards = parsed.get("cards", [])
+    if not cards:
+        logger.warning(f"[NVIDIA] Response parsed but 'cards' array is empty! Full parsed: {str(parsed)[:500]}")
+    else:
+        logger.info(f"[NVIDIA] First card keys: {list(cards[0].keys()) if cards else 'N/A'}")
+        logger.info(f"[NVIDIA] First card preview: {str(cards[0])[:300]}")
+
+    return cards
+
+
 async def generate_cards(
     transcript_text: str,
     level: str,
@@ -380,6 +526,9 @@ async def generate_cards(
     if max_cards is None:
         max_cards = settings.free_max_cards if user_role == "user" else 25
 
+    if _is_openrouter_free_mode(user_role):
+        max_cards = min(max_cards, settings.openrouter_free_max_cards)
+
     system_prompt, user_prompt = build_prompt(
         transcript_text=transcript_text,
         level=level,
@@ -395,9 +544,8 @@ async def generate_cards(
     if on_event:
         await on_event("ai_started", {"phase": "ai", "status": "started"})
 
-    # Determine provider order based on user tier + circuit breaker
-    primary_provider = TIER_TO_PROVIDER.get(user_role, "flash")
-    fallback_order = _get_fallback_order(primary_provider)
+    # Determine provider order based on role-based fallback chain
+    fallback_order = _get_role_fallback("curator")
 
     last_error: Optional[Exception] = None
     attempt_number = 0
@@ -421,12 +569,30 @@ async def generate_cards(
             logger.info(f"Calling provider: {provider} (model: {PROVIDER_TO_MODEL[provider]})")
 
             if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                safe_max_tokens, safe_max_cards = _get_safe_openrouter_request_settings(
+                    max_tokens=3000,
+                    max_cards=max_cards,
+                    user_role=user_role,
+                    provider=provider,
+                )
+                logger.info(
+                    f"[AI-ROUTER] Using provider={provider} model={PROVIDER_TO_MODEL[provider]} "
+                    f"max_tokens={safe_max_tokens} max_cards={safe_max_cards}"
+                )
                 raw_cards = await _call_openrouter(
                     model_name=PROVIDER_TO_MODEL[provider],
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     temperature=settings.temp_openrouter,
-                    max_tokens=3000,
+                    max_tokens=safe_max_tokens,
+                )
+            elif provider.startswith("nvidia_"):
+                raw_cards = await _call_nvidia(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.3,
+                    max_tokens=settings.nvidia_max_tokens,
                 )
             elif provider in ("flash", "pro"):
                 temperature = settings.temp_flash if provider == "flash" else settings.temp_pro
@@ -485,20 +651,21 @@ async def generate_cards(
     )
 
 
-def _get_fallback_order(primary: str) -> list[str]:
-    """Build fallback chain starting from primary provider."""
-    # MVP: solo providers gratuitos para evitar costos inesperados
-    # until payments (Stripe) are configured
-    free_providers = ["openrouter", "openrouter_secondary", "openrouter_tertiary", "flash"]
-    paid_providers = ["pro", "claude"]
+def _get_role_fallback(role: str) -> list[str]:
+    """
+    Get the fallback chain for a specific role.
+    role: "curator" (Step 1 - extraction) or "designer" (Step 3 - selection)
+    """
+    curator_chain = [p.strip() for p in settings.curator_fallback_chain.split(",")]
+    designer_chain = [p.strip() for p in settings.designer_fallback_chain.split(",")]
 
-    try:
-        idx = free_providers.index(primary)
-        return free_providers[idx:] + free_providers[:idx]
-    except ValueError:
-        # Primary could still be pro/claude (future), fall back to free only
-        logger.warning(f"Unknown provider '{primary}', using free providers only for MVP")
-        return free_providers
+    if role == "curator":
+        return curator_chain
+    elif role == "designer":
+        return designer_chain
+    else:
+        logger.warning(f"Unknown role '{role}', using curator chain as fallback")
+        return curator_chain
 
 
 async def extract_candidates(
@@ -515,6 +682,9 @@ async def extract_candidates(
     """
     from utils.prompts import build_extraction_prompt
 
+    if _is_openrouter_free_mode(user_role):
+        max_cards = min(max_cards, settings.openrouter_free_max_cards)
+
     system_prompt, user_prompt = build_extraction_prompt(
         transcript_text=transcript_text,
         level=level,
@@ -524,9 +694,8 @@ async def extract_candidates(
     if on_event:
         await on_event("pipeline_step1_started", {"phase": "pipeline_step1", "status": "started"})
 
-    # Use the user's tier to select provider
-    primary_provider = TIER_TO_PROVIDER.get(user_role, "openrouter")
-    fallback_order = _get_fallback_order(primary_provider)
+    # Role-based fallback chain for Step 1 (Curator)
+    fallback_order = _get_role_fallback("curator")
 
     last_error = None
     for provider in fallback_order:
@@ -538,12 +707,26 @@ async def extract_candidates(
             logger.info(f"[PIPELINE-STEP1] Trying provider: {provider} (model: {PROVIDER_TO_MODEL[provider]})")
             
             if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                safe_max_tokens, _ = _get_safe_openrouter_request_settings(
+                    max_tokens=4000,
+                    max_cards=max_cards,
+                    user_role=user_role,
+                    provider=provider,
+                )
                 raw_cards = await _call_openrouter(
                     model_name=PROVIDER_TO_MODEL[provider],
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     temperature=0.3,  # Low for consistency
-                    max_tokens=4000,  # ~30 cards need ~6400 chars of JSON
+                    max_tokens=safe_max_tokens,
+                )
+            elif provider.startswith("nvidia_"):
+                raw_cards = await _call_nvidia(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.3,
+                    max_tokens=settings.nvidia_max_tokens,
                 )
             elif provider in ("flash", "pro"):
                 raw_cards = await _call_gemini(
@@ -551,7 +734,7 @@ async def extract_candidates(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     temperature=0.3,
-                    max_output_tokens=4000,  # Match openrouter
+                    max_output_tokens=3000,
                 )
             else:
                 raw_cards = await _call_claude(
@@ -606,6 +789,9 @@ async def select_best_cards(
     """
     from utils.prompts import build_selection_prompt
 
+    if _is_openrouter_free_mode(user_role):
+        max_cards = min(max_cards, settings.openrouter_free_max_cards)
+
     system_prompt, user_prompt = build_selection_prompt(
         filtered_cards=filtered_cards,
         level=level,
@@ -616,9 +802,8 @@ async def select_best_cards(
     if on_event:
         await on_event("pipeline_step3_started", {"phase": "pipeline_step3", "status": "started"})
 
-    # Use the user's tier to select provider
-    primary_provider = TIER_TO_PROVIDER.get(user_role, "openrouter")
-    fallback_order = _get_fallback_order(primary_provider)
+    # Role-based fallback chain for Step 3 (Designer)
+    fallback_order = _get_role_fallback("designer")
 
     last_error = None
     for provider in fallback_order:
@@ -627,12 +812,26 @@ async def select_best_cards(
 
         try:
             if provider in ("openrouter", "openrouter_secondary", "openrouter_tertiary"):
+                safe_max_tokens, _ = _get_safe_openrouter_request_settings(
+                    max_tokens=4000,
+                    max_cards=max_cards,
+                    user_role=user_role,
+                    provider=provider,
+                )
                 raw_cards = await _call_openrouter(
                     model_name=PROVIDER_TO_MODEL[provider],
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     temperature=0.2,  # Very low for pedagogical decisions
-                    max_tokens=4000,
+                    max_tokens=safe_max_tokens,
+                )
+            elif provider.startswith("nvidia_"):
+                raw_cards = await _call_nvidia(
+                    model_name=PROVIDER_TO_MODEL[provider],
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=0.2,  # Lower for pedagogical decisions
+                    max_tokens=settings.nvidia_max_tokens,
                 )
             elif provider in ("flash", "pro"):
                 raw_cards = await _call_gemini(
@@ -640,7 +839,7 @@ async def select_best_cards(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     temperature=0.2,
-                    max_output_tokens=4000,
+                    max_output_tokens=3000,
                 )
             else:
                 raw_cards = await _call_claude(
