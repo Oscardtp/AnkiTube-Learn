@@ -73,3 +73,15 @@ frontend/dist/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local / temporary files
+.mimocode/
+EJECUTAR.txt
+
+# Backend generated files
+backend/assets/
+backend/celerybeat-schedule.*
+backend/test_videos.json
+
+# Documents
+docs/FAQ - Retención + Valor de Producto - AnkiTube Learn.docx
