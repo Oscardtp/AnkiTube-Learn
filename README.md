@@ -21,6 +21,7 @@ AnkiTube Learn es una plataforma diseñada para colombianos (22-38 años) que es
 2. **Genera tarjetas Anki** (.apkg) con audio real del momento exacto del video
 3. **Incluye contexto colombiano** en cada tarjeta para facilitar el aprendizaje
 4. **Ofrece vista previa** antes de descargar el mazo completo
+5. **Estudia con repaso espaciado** (SM-2) y ejercicios de escritura/escucha
 
 ---
 
@@ -37,6 +38,7 @@ AnkiTube Learn es una plataforma diseñada para colombianos (22-38 años) que es
 | **Mazos** | genanki → .apkg con audio | Funcional |
 | **YouTube** | youtube-transcript-api (real) | Funcional |
 | **Auth** | JWT + bcrypt | Funcional |
+| **Estudio** | SM-2 (spaced repetition) + Skills | Funcional |
 | **Pagos** | Stripe | Pendiente (Fase 2) |
 | **Deploy** | Railway (backend) + Vercel (frontend) | Backend en producción |
 
@@ -52,36 +54,36 @@ AnkiTube-Learn/
 │   ├── main.py                # Punto de entrada
 │   ├── config.py              # Settings (pydantic-settings)
 │   ├── database.py            # Conexión MongoDB
-│   ├── models/                # Modelos de datos
-│   ├── routers/               # Endpoints (auth, decks, feedback, licenses, admin)
+│   ├── models/                # Modelos de datos (Pydantic v2)
+│   ├── routers/               # Endpoints (auth, decks, feedback, licenses, admin, study)
 │   ├── services/              # Lógica de negocio
 │   │   ├── ai_router.py       # Router IA con fallback + circuit breaker
+│   │   ├── card_pipeline.py   # Pipeline de 3 pasos para generar tarjetas
+│   │   ├── filter_rules.py    # Filtrado determinístico de candidatos
+│   │   ├── audio_service.py   # Generación de clips de audio (async)
 │   │   ├── anki_service.py    # Generación .apkg
-│   │   ├── youtube_real.py    # Transcripción real
-│   │   └── youtube_mock.py    # Mock para desarrollo
+│   │   └── youtube_real.py    # Transcripción real
 │   └── utils/                 # Prompts, auth, freemium, rate limiting
 │
 ├── frontend/                  # Next.js 14 app → Vercel
-│   ├── app/                   # App Router (14 páginas)
+│   ├── app/                   # App Router
 │   │   ├── page.tsx           # Landing page
 │   │   ├── dashboard/         # Dashboard de usuario
 │   │   ├── preview/[deck_id]/ # Vista previa de mazos
+│   │   ├── study/[deck_id]/   # Modo de estudio (SRS + Skills)
 │   │   ├── admin/             # Panel admin (5 sub-páginas)
 │   │   ├── login/             # Login
-│   │   ├── register/          # Registro
-│   │   └── ...
+│   │   └── register/          # Registro
 │   ├── components/            # 20+ componentes UI
+│   │   └── study/             # Componentes de estudio (SRS, Writing, Listening)
 │   ├── features/              # Módulos feature-based
-│   │   ├── landing/           # Secciones de landing
-│   │   └── dashboard/         # Componentes del dashboard
-│   ├── hooks/                 # Custom hooks (useDeck, useCurrentUser, etc.)
+│   ├── hooks/                 # Custom hooks (useSM2, useDeck, useCurrentUser, etc.)
 │   ├── stores/                # Zustand stores
-│   ├── lib/api.ts             # API client centralizado (19 endpoints)
+│   ├── lib/api.ts             # API client centralizado
 │   └── types/                 # TypeScript types
 │
 ├── docs/                      # Documentación detallada
-├── workspace colaborativo/    # Specs, screenshots, planes
-└── CLAUDE.md                  # Contexto para IA
+└── AGENTS.md                  # Contexto para IA
 ```
 
 ---
@@ -179,7 +181,7 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
 ### Backend
 
-```bash
+```powershell
 cd backend
 .venv\Scripts\activate  # Windows
 uvicorn main:app --reload
@@ -191,12 +193,34 @@ uvicorn main:app --reload
 
 ### Frontend
 
-```bash
+```powershell
 cd frontend
 npm run dev
 ```
 
 - **App:** http://localhost:3000
+
+### Reiniciar Backend
+
+```powershell
+taskkill /F /IM uvicorn.exe
+cd backend
+uvicorn main:app --reload
+```
+
+---
+
+## Pipeline de Generación de Tarjetas
+
+El sistema usa un pipeline de 3 pasos para generar tarjetas:
+
+1. **Extracción (LLM):** OpenRouter extrae frases candidatas del transcript
+2. **Filtrado (Backend):** Reglas determinísticas eliminan duplicados y frases inválidas
+3. **Selección (LLM):** OpenRouter selecciona las mejores tarjetas para el nivel
+
+**Límites de créditos OpenRouter:** El servidor tiene créditos limitados. `max_tokens` se mantiene ≤ 4000 para el Paso 1.
+
+**Generación de audio:** Los clips se generan en paralelo usando `asyncio.gather()` con `asyncio.to_thread()` para las herramientas bloqueantes (yt-dlp, ffmpeg).
 
 ---
 
@@ -221,6 +245,13 @@ npm run dev
 | POST | `/api/decks/{id}/claim` | Reclamar mazo anónimo |
 | DELETE | `/api/decks/{id}` | Eliminar mazo (soft delete) |
 | GET | `/api/decks/user/my-decks` | Lista mazos del usuario |
+
+### Estudio
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/study/{deck_id}/status` | Estado de estudio del mazo |
+| POST | `/api/study/{deck_id}/results` | Enviar resultados de sesión |
 
 ### Feedback
 
@@ -273,11 +304,14 @@ npm run dev
 - [x] Frontend funcional (Landing, Dashboard, Preview, Admin)
 - [x] Auth JWT completo (backend + frontend)
 - [x] Sistema de feedback
+- [x] Pipeline de 3 pasos para generación de tarjetas
+- [x] Generación de audio asíncrona y en paralelo
+- [x] Modo de estudio con SM-2 (spaced repetition)
+- [x] Ejercicios de Writing y Listening
 - [ ] Deploy frontend en Vercel
 
 ### Fase 2 — Producto Avanzado
 
-- [ ] Estudio con sistema SM-2 (spaced repetition)
 - [ ] YouTube embed en preview
 - [ ] Stripe + pagos
 - [ ] Setup Wizard (5 preguntas)
@@ -287,7 +321,7 @@ npm run dev
 
 ### Fase 3 — Motor de Skills
 
-- [ ] Listening, Reading, Writing, Speaking
+- [ ] Speaking exercises
 - [ ] Plan de estudio 8 semanas
 - [ ] Reproductor integrado
 
@@ -306,6 +340,32 @@ npm run dev
 4. Superadmin requiere 2FA — en cada request
 5. Soft delete siempre — usar `deleted_at`, nunca borrar de MongoDB
 6. Mock = schema real — `youtube_mock.py` misma firma que el real
+7. Pydantic v2 — siempre usar `Field(default=...)` no `= ""` directamente
+
+---
+
+## Troubleshooting
+
+### Backend no inicia
+
+```powershell
+taskkill /F /IM uvicorn.exe
+cd backend
+.venv\Scripts\activate
+uvicorn main:app --reload
+```
+
+### Error 402 de OpenRouter
+
+La cuenta tiene créditos limitados. Reducir `max_tokens` en `ai_router.py` o añadir créditos en [openrouter.ai/settings/credits](https://openrouter.ai/settings/credits).
+
+### Error de Pydantic v2
+
+Usar `Field(default="")` en lugar de `= ""` directamente en los modelos.
+
+### Audio no genera
+
+Verificar que `yt-dlp` y `ffmpeg` estén instalados y en el PATH.
 
 ---
 
@@ -317,7 +377,7 @@ npm run dev
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-Lee `CLAUDE.md` para entender el contexto completo del proyecto.
+Lee `AGENTS.md` para entender el contexto completo del proyecto.
 
 ---
 
