@@ -1,4 +1,5 @@
 import os
+import secrets
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -10,10 +11,10 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-os.environ.setdefault("MONGODB_URL", "mongodb://localhost:27017")
-os.environ.setdefault("JWT_SECRET", "test-secret")
-os.environ.setdefault("GOOGLE_API_KEY", "test-google-key")
-os.environ.setdefault("ANTHROPIC_API_KEY", "test-anthropic-key")
+os.environ["MONGODB_URL"] = "mongodb://localhost:27017"
+os.environ["JWT_SECRET"] = secrets.token_hex(32)  # Random secret for tests
+os.environ["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY", "test-google-key")
+os.environ["ANTHROPIC_API_KEY"] = os.environ.get("ANTHROPIC_API_KEY", "test-anthropic-key")
 
 import main
 
@@ -25,7 +26,8 @@ def client():
             yield test_client
 
 
-def test_devtunnel_origin_is_allowed_for_preflight(client):
+def test_devtunnel_origin_is_NOT_allowed_for_preflight(client):
+    """SECURITY: DevTunnel origins should NOT be allowed (was a security hole)."""
     response = client.options(
         "/api/auth/login",
         headers={
@@ -35,6 +37,5 @@ def test_devtunnel_origin_is_allowed_for_preflight(client):
         },
     )
 
-    assert response.status_code == 200
-    assert response.headers.get("access-control-allow-origin") == "https://mxx51kxj-3000.use.devtunnels.ms"
-    assert response.headers.get("access-control-allow-credentials") == "true"
+    # Should NOT allow devtunnels origin
+    assert response.headers.get("access-control-allow-origin") != "https://mxx51kxj-3000.use.devtunnels.ms"

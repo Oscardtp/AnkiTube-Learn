@@ -319,9 +319,8 @@ async def _call_openrouter(
     }
 
     logger.info(f"[OPENROUTER] Request: model={model_name}, temp={temperature}, max_tokens={max_tokens}")
-    logger.info(f"[OPENROUTER] System prompt length: {len(system_prompt)} chars")
-    logger.info(f"[OPENROUTER] User prompt length: {len(user_prompt)} chars")
-    logger.debug(f"[OPENROUTER] User prompt preview: {user_prompt[:500]}...")
+    # SECURITY: Never log prompt content — may contain user data
+    logger.debug(f"[OPENROUTER] System prompt length: {len(system_prompt)} chars")
 
     # Retry up to 3 times for rate limiting / credit limits with smaller payloads
     last_error: Optional[str] = None
@@ -420,9 +419,8 @@ async def _call_nvidia(
     )
 
     logger.info(f"[NVIDIA] Request: model={model_name}, temp={temperature}, max_tokens={max_tokens}")
-    logger.info(f"[NVIDIA] System prompt length: {len(system_prompt)} chars")
-    logger.info(f"[NVIDIA] User prompt length: {len(user_prompt)} chars")
-    logger.debug(f"[NVIDIA] User prompt preview: {user_prompt[:500]}...")
+    # SECURITY: Never log prompt content — may contain user data
+    logger.debug(f"[NVIDIA] System prompt length: {len(system_prompt)} chars")
 
     last_error: Optional[str] = None
     for attempt in range(3):

@@ -55,7 +55,7 @@ async def register(request: Request, payload: UserCreate):
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")  # SECURITY: Reduced from 10 to 5 per minute for brute force protection
 async def login(request: Request, payload: UserLogin):
     db = get_db()
 

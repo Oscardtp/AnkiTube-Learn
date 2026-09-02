@@ -1,5 +1,29 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// SECURITY: Validate JWT token before using it
+function getValidToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+  
+  try {
+    // Decode JWT payload (Base64URL)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    
+    // Check if token is expired
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem("token"); // Remove expired token
+      return null;
+    }
+    
+    return token;
+  } catch {
+    localStorage.removeItem("token"); // Remove invalid token
+    return null;
+  }
+}
+
 interface GenerateRequest {
   youtube_url: string;
   level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -71,7 +95,7 @@ async function fetchAPI<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+  const token = getValidToken();
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -106,7 +130,7 @@ export const api = {
     onEvent: (event: string, payload: Record<string, unknown>) => void,
     signal?: AbortSignal,
   ): Promise<void> => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+    const token = getValidToken();
     const response = await fetch(`${API_URL}/api/decks/generate-stream`, {
       method: "POST",
       headers: {
@@ -413,9 +437,10 @@ export const api = {
 
   // Download
   downloadDeck: async (deckId: string): Promise<Blob> => {
+    const token = getValidToken();
     const response = await fetch(`${API_URL}/api/decks/${deckId}/download`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        Authorization: `Bearer ${token || ""}`,
       },
     });
 

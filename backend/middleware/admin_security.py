@@ -30,12 +30,8 @@ class AdminIPWhitelistMiddleware(BaseHTTPMiddleware):
         return {ip.strip() for ip in raw.split(",") if ip.strip()}
 
     def _get_client_ip(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
+        # SECURITY: Never trust X-Forwarded-For for IP whitelisting
+        # (client can spoof this header). Use the direct connection IP.
         return request.client.host if request.client else ""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

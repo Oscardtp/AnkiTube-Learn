@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 10080  # 7 days
+    jwt_expire_minutes: int = 60  # 1 hour (was 7 days — too risky without revocation)
 
     # AI — OpenRouter
-    openrouter_api_key: str = "dummy-for-local-dev"
+    openrouter_api_key: str = ""  # SECURITY: No default — must be configured in .env
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model_openrouter: str = "meta-llama/llama-3.2-3b-instruct:free"  # Primary free
     llm_model_openrouter_free_secondary: str = "openrouter/auto"  # MVP: auto-routing (models change frequently)

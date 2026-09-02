@@ -2,6 +2,7 @@
 Superadmin panel router.
 2FA required on every request — TOTP-based with fallback to static code.
 """
+import hmac
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
@@ -77,12 +78,8 @@ async def _audit_log(
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+    # SECURITY: Never trust X-Forwarded-For for IP logging
+    # Use the direct connection IP
     return request.client.host if request.client else ""
 
 
@@ -145,8 +142,14 @@ async def verify_2fa(
         totp_secret = user_doc.get("totp_secret", "")
         valid = verify_totp(totp_secret, x_2fa_code)
     else:
-        # Fallback to static code
-        valid = x_2fa_code == settings.superadmin_2fa_code
+        # SECURITY: Use hmac.compare_digest to prevent timing attacks
+        # Fallback to static code (DEPRECATED — configure TOTP instead)
+        if not settings.superadmin_2fa_code:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="2FA no está configurado. Configura TOTP desde /api/admin/2fa/setup",
+            )
+        valid = hmac.compare_digest(x_2fa_code, settings.superadmin_2fa_code)
 
     if not valid:
         # Increment attempts

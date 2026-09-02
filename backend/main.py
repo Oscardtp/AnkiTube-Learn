@@ -45,7 +45,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — allow local dev + tunnel origins while keeping the API usable in development
+# CORS — allow local dev + specific tunnel origins
 cors_origins = []
 
 for origin in [
@@ -58,18 +58,12 @@ for origin in [
     if origin:
         cors_origins.append(origin)
 
-# Allow common devtunnel hosts such as https://<id>-3000.use.devtunnels.ms
-if settings.frontend_url and settings.frontend_url not in cors_origins:
-    cors_origins.append(settings.frontend_url)
-
-# Allow any origin matching *.use.devtunnels.ms during development
-# This keeps local tunneling working without needing to hardcode every generated hostname.
-allowed_origin_patterns = ["https://*.use.devtunnels.ms", "http://*.use.devtunnels.ms"]
+# SECURITY: Only allow specific tunnel origins, not all *.use.devtunnels.ms
+# DevTunnel origins are dynamic — add only the ones you need manually
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_origin_regex=r"https?://.*\.use\.devtunnels\.ms$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-2FA-Code"],
@@ -101,11 +95,9 @@ app.include_router(admin.router)
 app.include_router(study.router)
 app.include_router(recommender.router)
 
-# Mount static files for audio
-from fastapi.staticfiles import StaticFiles
-from services.audio_service import AUDIO_CACHE_DIR
-AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/audio", StaticFiles(directory=str(AUDIO_CACHE_DIR)), name="audio")
+# SECURITY: Audio files are NOT mounted as static files
+# Audio is served through authenticated endpoint: /api/decks/{deck_id}/audio/{card_index}
+# This prevents unauthorized access to audio content
 
 
 @app.get("/health")
