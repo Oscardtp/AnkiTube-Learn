@@ -25,10 +25,9 @@ pnpm-debug.log*
 
 # Environment variables - NUNCA subir al repo
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+!.env.example.*
 
 # IDEs
 .vscode/
@@ -50,12 +49,53 @@ logs/
 
 # Backend env files
 backend/.env
-backend/.env.example
+backend/.env.*
+!backend/.env.example
+!backend/.env.example.*
+
+# Certificates & Keys - NUNCA subir
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Credentials & Secrets
+credentials.*
+secrets.*
+*.credentials
+*.secret
+service-account*.json
+*-service-account.json
+
+# Cloud provider config
+.aws/
+.gcloud/
+.config/gcloud/
+.firebase/
+firebase*.json
+*-firebase*.json
+
+# Databases - NUNCA subir
+*.sqlite3
+*.sqlite
+*.db
+*.database
 
 # Planning files
 plans/
 .kilo/plans/
 *.plan.md
+
+# Sensitive config files
+config.json
+config.yaml
+config.yml
+settings.json
+settings.yaml
+settings.yml
 
 # AI Agent Tools - NO TRACK
 .antigravitycli/
@@ -65,18 +105,48 @@ plans/
 frontend/.agents/
 frontend/skills-lock.json
 
+# CI/CD - tokens pueden filtrarse
+.github/workflows/*.yml
+.gitlab-ci.yml
+.circleci/
+
+# Docker secrets
+docker-compose.override.yml
+*.env.docker
+
 # Build artifacts
 frontend/.next/
 frontend/out/
 frontend/dist/
+*.map
+
+# Package managers - lock files sometimes have tokens
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
+# Python - virtual envs
+.venv/
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Local / temporary files
 .mimocode/
 EJECUTAR.txt
+*.bak
+*.backup
+*.tmp
+*.temp
+*.old
+*.orig
+*~
 
 # Backend generated files
 backend/assets/
